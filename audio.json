@@ -1,0 +1,19 @@
+{
+  "instruments": [
+    {"sample_id":34658,"default_volume":205,"default_pan":-42,"attack":2,"decay":22,"sustain":140,"release":30},
+    {"sample_id":34658,"default_volume":205,"default_pan":42,"attack":2,"decay":22,"sustain":140,"release":30},
+    {"sample_id":34208,"default_volume":220,"default_pan":-22,"attack":1,"decay":32,"sustain":165,"release":40},
+    {"sample_id":34208,"default_volume":220,"default_pan":22,"attack":1,"decay":32,"sustain":165,"release":40},
+    {"sample_id":35370,"default_volume":175,"default_pan":-58,"attack":0,"decay":15,"sustain":90,"release":20},
+    {"sample_id":35370,"default_volume":175,"default_pan":58,"attack":0,"decay":15,"sustain":90,"release":20},
+    {"sample_id":36099,"default_volume":225,"default_pan":-12,"attack":0,"decay":8,"sustain":0,"release":10},
+    {"sample_id":36099,"default_volume":225,"default_pan":12,"attack":0,"decay":8,"sustain":0,"release":10}
+  ],
+  "tracks": [
+    {"events":[{"delta":0,"command":"SET_TEMPO","arg0":108},{"delta":0,"command":"NOTE_ON","arg0":0,"arg1":60},{"delta":0,"command":"NOTE_ON","arg0":1,"arg1":67},{"delta":0,"command":"NOTE_ON","arg0":2,"arg1":48},{"delta":0,"command":"NOTE_ON","arg0":3,"arg1":55},{"delta":0,"command":"NOTE_ON","arg0":4,"arg1":72},{"delta":0,"command":"NOTE_ON","arg0":5,"arg1":76},{"delta":0,"command":"NOTE_ON","arg0":6,"arg1":36},{"delta":3,"command":"NOTE_ON","arg0":7,"arg1":43},{"delta":9,"command":"NOTE_OFF","arg0":4},{"delta":0,"command":"NOTE_OFF","arg0":5},{"delta":0,"command":"NOTE_ON","arg0":4,"arg1":74},{"delta":0,"command":"NOTE_ON","arg0":5,"arg1":79},{"delta":12,"command":"JUMP","arg0":0,"arg1":0}]},
+    {"events":[{"delta":0,"command":"SET_TEMPO","arg0":132},{"delta":0,"command":"NOTE_ON","arg0":0,"arg1":64},{"delta":0,"command":"NOTE_ON","arg0":1,"arg1":71},{"delta":0,"command":"NOTE_ON","arg0":2,"arg1":40},{"delta":0,"command":"NOTE_ON","arg0":3,"arg1":52},{"delta":0,"command":"NOTE_ON","arg0":4,"arg1":76},{"delta":0,"command":"NOTE_ON","arg0":5,"arg1":83},{"delta":0,"command":"NOTE_ON","arg0":6,"arg1":36},{"delta":3,"command":"NOTE_ON","arg0":7,"arg1":42},{"delta":6,"command":"NOTE_OFF","arg0":4},{"delta":0,"command":"NOTE_ON","arg0":4,"arg1":78},{"delta":3,"command":"NOTE_OFF","arg0":5},{"delta":0,"command":"NOTE_ON","arg0":5,"arg1":81},{"delta":12,"command":"JUMP","arg0":0,"arg1":0}]},
+    {"events":[{"delta":0,"command":"SET_TEMPO","arg0":96},{"delta":0,"command":"NOTE_ON","arg0":0,"arg1":60},{"delta":0,"command":"NOTE_ON","arg0":1,"arg1":72},{"delta":0,"command":"NOTE_ON","arg0":2,"arg1":48},{"delta":0,"command":"NOTE_ON","arg0":3,"arg1":55},{"delta":0,"command":"NOTE_ON","arg0":4,"arg1":79},{"delta":0,"command":"NOTE_ON","arg0":5,"arg1":84},{"delta":0,"command":"NOTE_ON","arg0":6,"arg1":36},{"delta":6,"command":"NOTE_ON","arg0":7,"arg1":48},{"delta":18,"command":"JUMP","arg0":0,"arg1":0}]},
+    {"events":[{"delta":0,"command":"SET_TEMPO","arg0":180},{"delta":0,"command":"NOTE_ON","arg0":6,"arg1":50},{"delta":0,"command":"NOTE_ON","arg0":7,"arg1":50},{"delta":2,"command":"NOTE_OFF","arg0":6},{"delta":0,"command":"NOTE_OFF","arg0":7}]},
+    {"events":[{"delta":0,"command":"SET_TEMPO","arg0":120},{"delta":0,"command":"NOTE_ON","arg0":6,"arg1":48},{"delta":0,"command":"NOTE_ON","arg0":7,"arg1":48},{"delta":6,"command":"NOTE_OFF","arg0":6},{"delta":0,"command":"NOTE_OFF","arg0":7}]}
+  ]
+}
