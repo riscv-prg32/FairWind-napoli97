@@ -4,18 +4,19 @@ import re, json
 r=Path(__file__).resolve().parents[1]
 s=(r/'src/game.c').read_text(); h=(r/'src/assets_bitplanes.h').read_text()
 assert 'prg32_sprite_draw_bitplanes' in (r/'src/platform.h').read_text()
-assert 'sprite(&hull_sprite,nacup_hull_planes,nacup_palette,32,32,16,4,0)' in s
-assert 'sprite(&main_sprite,nacup_main_planes,nacup_sail_palette,32,32,16,2,0)' in s
+assert 'sprite(&jib_yacht_sprite,nacup_jib_yacht_planes,nacup_yacht_palette0,32,32,16,4,0)' in s
+assert 'sprite(&spin_yacht_sprite,nacup_spin_yacht_planes,nacup_yacht_palette0,32,32,16,4,0)' in s
 assert 'nacup_hull_palette[256]' in h
 assert 'nacup_sail_palette[4]' in h
-for component in ('hull','main','jib','spin'):
+assert 'nacup_background_palette[16]' in h and 'nacup_background_rle8' in h
+for component in ('jib_yacht','spin_yacht'):
     assert f'nacup_{component}_planes' in h
 for i in range(4): assert f'nacup_spin_palette{i}[4]' in h
-assert 'nacup_spin_palettes' not in h and 'spin_palette(b->team)' in s
+assert 'nacup_spin_palettes' not in h and 'yacht_palette(b->team)' in s
 generator=(r/'tools/generate_assets.py').read_text()
 assert 'Il Moro di Venezia V-inspired IACC form' in generator
 assert '(98,18,24)' in generator and '(207,39,45)' in generator
-assert 'nacup_background_planes' in h and 'sprite(&background_sprite' in s
+assert 'nacup_background_offsets[6]' in h and 'nacup_background_rle8[i++]' in s
 assert 'NAPOLI 1997' in s and 'RACES 5' in s
 assert 'prg32_multiplayer_join' in (r/'src/platform.h').read_text()
 assert '--portable --multiplayer' in (r/'build.sh').read_text()
@@ -45,6 +46,8 @@ for rule in ('RULE_PORT','RULE_WINDWARD','RULE_ASTERN','RULE_TACKING','RULE_CONT
 assert 'start_clock>240' in s and 'penalty_turn>=32' in s and 'serve_penalty' in s
 assert 'mark_dist2' in s and 'windward_score' in s and 'tack_timer=24' in s
 assert 'PREVAILING_SW_HEADING 0' in s and 'SW BREEZE 8-16 KT' in s
+assert 'TOP_VIEW_ENTER 65' in s and 'top_view_mode=(uint8_t)close_to_rival_or_buoy(TOP_VIEW_ENTER)' in s
+assert 'close_to_rival_or_buoy' in s and '"TOP VIEW"' in s
 assert "backgrounds=[authored_panorama(i) for i in range(5)]" in generator
 for i in range(5): assert (r/f'assets/source/panorama-{i}.png').is_file()
 sheet=Image.open(r/'assets/generated/boat_bitplane_sheet.png').convert('RGB')

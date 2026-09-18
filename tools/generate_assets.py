@@ -47,7 +47,7 @@ def component(heading,kind,side=0):
         d.polygon([(50,88),(38,125),(58,102)],fill=(177,235,247,145));d.polygon([(78,88),(90,125),(70,102)],fill=(177,235,247,145));d.line((43,112,57,98),fill=(202,247,255,180),width=3);d.line((85,112,71,98),fill=(202,247,255,180),width=3)
         # Il Moro di Venezia V-inspired IACC form: long narrow red hull,
         # fine bow, broad working stern and a pale inset deck.
-        d.polygon([(64,3),(43,88),(47,104),(56,122),(72,122),(81,104),(85,88)],fill=(98,18,24,255));d.polygon([(64,6),(47,87),(51,101),(59,116),(69,116),(77,101),(81,87)],fill=(207,39,45,255))
+        d.polygon([(64,3),(43,88),(47,104),(56,122),(72,122),(81,104),(85,88)],fill=(177,77,42,255));d.polygon([(64,6),(47,87),(51,101),(59,116),(69,116),(77,101),(81,87)],fill=(207,39,45,255))
         d.polygon([(64,13),(52,84),(56,98),(64,109),(72,98),(76,84)],fill=(242,245,241,255));d.line((48,88,57,103,64,114,71,103,80,88),fill=(255,241,184,255),width=2);d.polygon([(64,27),(59,78),(64,90),(69,78)],fill=(231,230,208,255))
         # Cockpit, crew, winches, mast step and bow fitting survive at 32 px.
         d.ellipse((54,76,74,99),fill=(28,37,48,255));d.ellipse((58,80,70,93),fill=(78,174,209,255));d.ellipse((55,83,60,89),fill=(250,247,224,255));d.ellipse((68,83,73,89),fill=(250,247,224,255));d.ellipse((55,91,60,97),fill=(207,39,45,255));d.ellipse((68,91,73,97),fill=(207,39,45,255))
@@ -56,27 +56,27 @@ def component(heading,kind,side=0):
         palette=PALETTE;planes=4
     elif kind=='main':
         if side==0:
-            d.polygon([(67,43),(67,105),(111,93),(104,66),(91,50)],fill=(250,247,224,255));d.polygon([(72,53),(72,97),(101,90),(97,69),(88,57)],fill=(185,205,210,255));d.polygon([(73,57),(88,58),(96,70),(74,72)],fill=(255,255,255,255));d.line((69,70,104,74),fill=(185,205,210,255),width=3);d.line((69,86,108,88),fill=(185,205,210,255),width=3);d.line((68,102,107,93),fill=(185,205,210,255),width=3);d.ellipse((81,76,90,85),fill=(255,255,255,255))
+            d.polygon([(67,39),(67,104),(101,91),(94,58)],fill=(250,247,224,255));d.polygon([(72,51),(72,96),(94,88),(89,63)],fill=(255,255,255,255));d.line((69,69,94,72),fill=(185,205,210,255),width=4);d.line((69,86,98,88),fill=(185,205,210,255),width=4);d.line((67,39,67,104),fill=(185,205,210,255),width=3)
         else:
-            d.polygon([(61,43),(61,105),(17,93),(24,66),(37,50)],fill=(250,247,224,255));d.polygon([(56,53),(56,97),(27,90),(31,69),(40,57)],fill=(185,205,210,255));d.polygon([(55,57),(40,58),(32,70),(54,72)],fill=(255,255,255,255));d.line((59,70,24,74),fill=(185,205,210,255),width=3);d.line((59,86,20,88),fill=(185,205,210,255),width=3);d.line((60,102,21,93),fill=(185,205,210,255),width=3);d.ellipse((38,76,47,85),fill=(255,255,255,255))
+            d.polygon([(61,39),(61,104),(27,91),(34,58)],fill=(250,247,224,255));d.polygon([(56,51),(56,96),(34,88),(39,63)],fill=(255,255,255,255));d.line((59,69,34,72),fill=(185,205,210,255),width=4);d.line((59,86,30,88),fill=(185,205,210,255),width=4);d.line((61,39,61,104),fill=(185,205,210,255),width=3)
         palette=SAIL_PALETTE;planes=2
     elif kind=='jib':
         if side==0:
-            d.polygon([(67,18),(67,62),(104,37),(91,25)],fill=(250,247,224,255));d.polygon([(72,27),(72,54),(94,38),(87,30)],fill=(255,255,255,255));d.line((69,39,97,36),fill=(185,205,210,255),width=3);d.line((69,53,83,44),fill=(185,205,210,255),width=3)
+            d.polygon([(67,17),(67,61),(96,34),(84,24)],fill=(250,247,224,255));d.polygon([(72,27),(72,52),(89,36),(82,30)],fill=(255,255,255,255));d.line((69,39,90,35),fill=(185,205,210,255),width=4);d.line((67,17,67,61),fill=(185,205,210,255),width=3)
         else:
-            d.polygon([(61,18),(61,62),(24,37),(37,25)],fill=(250,247,224,255));d.polygon([(56,27),(56,54),(34,38),(41,30)],fill=(255,255,255,255));d.line((59,39,31,36),fill=(185,205,210,255),width=3);d.line((59,53,45,44),fill=(185,205,210,255),width=3)
+            d.polygon([(61,17),(61,61),(32,34),(44,24)],fill=(250,247,224,255));d.polygon([(56,27),(56,52),(39,36),(46,30)],fill=(255,255,255,255));d.line((59,39,38,35),fill=(185,205,210,255),width=4);d.line((61,17,61,61),fill=(185,205,210,255),width=3)
         palette=SAIL_PALETTE;planes=2
     else:
         # Indices 1/2 are recoloured at runtime through the team palette.
         if side==0:
-            d.ellipse((57,22,121,96),fill=(250,247,224,255));d.polygon([(64,22),(113,41),(106,86),(64,93)],fill=(185,205,210,255));d.polygon([(65,25),(89,32),(85,91),(65,93)],fill=(255,255,255,255));d.line((65,58,117,59),fill=(250,247,224,255),width=3);d.line((65,25,106,86),fill=(185,205,210,255),width=3);d.ellipse((83,51,96,64),fill=(250,247,224,255))
+            d.ellipse((58,25,112,91),fill=(250,247,224,255));d.polygon([(64,26),(105,41),(100,82),(64,90)],fill=(185,205,210,255));d.polygon([(65,28),(84,33),(82,88),(65,90)],fill=(255,255,255,255));d.line((65,57,108,57),fill=(250,247,224,255),width=4);d.line((65,28,100,82),fill=(185,205,210,255),width=4)
         else:
-            d.ellipse((7,22,71,96),fill=(250,247,224,255));d.polygon([(64,22),(15,41),(22,86),(64,93)],fill=(185,205,210,255));d.polygon([(63,25),(39,32),(43,91),(63,93)],fill=(255,255,255,255));d.line((63,58,11,59),fill=(250,247,224,255),width=3);d.line((63,25,22,86),fill=(185,205,210,255),width=3);d.ellipse((32,51,45,64),fill=(250,247,224,255))
+            d.ellipse((16,25,70,91),fill=(250,247,224,255));d.polygon([(64,26),(23,41),(28,82),(64,90)],fill=(185,205,210,255));d.polygon([(63,28),(44,33),(46,88),(63,90)],fill=(255,255,255,255));d.line((63,57,20,57),fill=(250,247,224,255),width=4);d.line((63,28,28,82),fill=(185,205,210,255),width=4)
         palette=SAIL_PALETTE;planes=2
-    turned=hi.rotate(-heading*360/16,resample=Image.Resampling.BICUBIC,center=(64,64));small=turned.resize((32,32),Image.Resampling.LANCZOS)
+    turned=hi.rotate(-heading*360/16,resample=Image.Resampling.BICUBIC,center=(64,64));small=turned.resize((32,32),Image.Resampling.BOX)
     pal=Image.new('P',(1,1));flat=sum((list(c) for c in palette),[]);pal.putpalette(flat+[0]*(768-len(flat)))
     rgb=Image.new('RGB',(32,32),(0,0,0));rgb.paste(small.convert('RGB'),mask=small.getchannel('A'));out=rgb.quantize(palette=pal,dither=Image.Dither.NONE)
-    alpha=list(small.getchannel('A').get_flattened_data());pixels=list(out.get_flattened_data());out.putdata([0 if a<72 else p for p,a in zip(pixels,alpha)])
+    alpha=list(small.getchannel('A').get_flattened_data());pixels=list(out.get_flattened_data());out.putdata([0 if a<112 else p for p,a in zip(pixels,alpha)])
     return out,planes
 def mark():
     im=Image.new('P',(16,16),0);im.putpalette(sum((list(c) for c in PALETTE),[])+[0]*(768-48));d=ImageDraw.Draw(im)
@@ -155,11 +155,29 @@ spins=[component(a,'spin',0)[0] for a in range(16)]
 m=mark(); c=cup(); backgrounds=[authored_panorama(i) for i in range(5)]; GEN.mkdir(parents=True,exist_ok=True)
 runtime_backgrounds=[]
 for background in backgrounds:
-    source=background.crop((0,0,320,33))
-    silhouette=Image.new('P',source.size,0)
-    silhouette.putpalette([101,187,255,57,63,59]+[0]*762)
-    silhouette.putdata([0 if index in (3,4,14) else 1 for index in source.get_flattened_data()])
-    runtime_backgrounds.append(silhouette)
+    runtime_backgrounds.append(background.resize((320,24),Image.Resampling.NEAREST))
+def compose_yacht(hull,*layers):
+    pixels=list(hull.get_flattened_data())
+    for layer,mapping in layers:
+        for i,value in enumerate(layer.get_flattened_data()):
+            if value: pixels[i]=mapping[value]
+    out=hull.copy();out.putdata(pixels);return out
+working_map={1:12,2:9,3:1};spin_map={1:10,2:15,3:1}
+jib_yachts=[compose_yacht(hulls[i],(mains[i],working_map),(jibs[i],working_map)) for i in range(16)]
+spin_yachts=[compose_yacht(hulls[i],(mains[i],working_map),(spins[i],spin_map)) for i in range(16)]
+def rle8(frames):
+    data=[];offsets=[0]
+    for image in frames:
+        pixels=list(image.get_flattened_data())
+        for y in range(image.height):
+            row=pixels[y*image.width:(y+1)*image.width];value=row[0];count=1
+            for next_value in row[1:]:
+                if next_value==value and count<255: count+=1
+                else: data.extend((count,value));value=next_value;count=1
+            data.extend((count,value))
+        offsets.append(len(data))
+    return data,offsets
+background_rle,background_offsets=rle8(runtime_backgrounds)
 def paste_indexed(dst,b,pos):
     art=b.convert('RGB').resize((64,64),Image.Resampling.NEAREST)
     # Build the transparency mask from palette indices directly. Converting a
@@ -186,10 +204,15 @@ text='#ifndef NACUP_ASSETS_BITPLANES_H\n#define NACUP_ASSETS_BITPLANES_H\n#inclu
 text+=f'static const uint16_t nacup_palette[16]={{{pal}}};\n'
 text+=f'static const uint16_t nacup_hull_palette[256]={{{boat_pal}}};\n'
 text+=f'static const uint16_t nacup_sail_palette[4]={{{sail_pal}}};\n'
-text+=f'static const uint16_t nacup_background_palette[2]={{0x{rgb565((101,187,255)):04x},0x{rgb565((57,63,59)):04x}}};\n'
+text+=f'static const uint16_t nacup_background_palette[16]={{{pal}}};\n'
 for i,(bright,dark) in enumerate(SPIN_COLORS):
     sp=[(0,0,0),bright,dark,(255,255,255)]
     text+=f'static const uint16_t nacup_spin_palette{i}[4]={{'+', '.join(f'0x{rgb565(x):04x}' for x in sp)+'};\n'
-text+=arr('nacup_hull_planes',planar(hulls,32,32,4))+arr('nacup_main_planes',planar(mains,32,32,2))+arr('nacup_jib_planes',planar(jibs,32,32,2))+arr('nacup_spin_planes',planar(spins,32,32,2))+arr('nacup_mark_planes',planar([m],16,16))+arr('nacup_cup_planes',planar([c],32,40))+arr('nacup_background_planes',planar(runtime_backgrounds,320,33,1))+'#endif\n'
+team_colors=[((0,91,119),(0,210,230),(190,246,255)),((125,16,25),(240,38,48),(255,215,218)),((82,35,124),(181,85,232),(235,215,255)),((190,118,0),(255,205,20),(255,243,186))]
+for i,(dark,bright,sail) in enumerate(team_colors):
+    tp=PALETTE.copy();tp[15]=dark;tp[6]=bright;tp[10]=bright;tp[12]=sail
+    text+=f'static const uint16_t nacup_yacht_palette{i}[16]={{'+', '.join(f'0x{rgb565(x):04x}' for x in tp)+'};\n'
+text+=arr('nacup_jib_yacht_planes',planar(jib_yachts,32,32,4))+arr('nacup_spin_yacht_planes',planar(spin_yachts,32,32,4))+arr('nacup_mark_planes',planar([m],16,16))+arr('nacup_cup_planes',planar([c],32,40))+arr('nacup_background_rle8',background_rle)
+text+='static const uint16_t nacup_background_offsets[6]={'+','.join(str(x) for x in background_offsets)+'};\n#endif\n'
 OUT.write_text(text)
 print(f'wrote {OUT} ({OUT.stat().st_size} bytes)')

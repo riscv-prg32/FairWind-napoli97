@@ -3,7 +3,10 @@
 ## Unreleased — 64 KiB profile refresh
 
 - Migrated the cartridge and package guards to PRG32's 64 KiB limits.
-- Restored distinct mainsail, jib, and team-coloured spinnaker layers for every heading.
+- Restored five 8-bit indexed Bay landscapes with row-safe RLE compression.
+- Rebuilt yachts as four-bitplane top-down silhouettes with syndicate-specific hull and sail palettes.
+- Added an automatic overhead tactical view within five yacht lengths of rivals or buoys.
+- Preserved distinct mainsail, jib, and spinnaker geometry in precomposed heading frames.
 - Added five authored one-plane Bay of Naples skyline silhouettes to the live race renderer.
 - Added a temporary build/upload adapter for the upstream Python fallback that still reports 32 KiB.
 

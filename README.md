@@ -77,15 +77,16 @@ The HUD identifies the infringement. Hold B to perform a complete low-speed 360-
 - Executable footprint below the firmware's **65,536-byte (64 KiB)** cartridge RAM ceiling
 - Hard maximum package size: **65,536 bytes (64 KiB)** per architecture variant
 - Normal 320×200 cartridge viewport with firmware-owned status bands
-- Runtime-composed hull, mainsail, jib, and spinnaker sprites
-- Compact four-plane hulls with distinct two-plane mainsail, jib, and spinnaker layers
+- Four-bitplane top-down yacht silhouettes for jib and spinnaker configurations
+- Distinct hull, trim, and sail palettes for all four fictional syndicates
 - A distinct cyan, red, purple, or yellow spinnaker for each team
 - Table-driven 12‑Metre polar performance at 8–16 knots true wind
 - Accelerated simulated race time with a complete 10/5–4–2–1–start match-racing sequence
 - Three selectable paths with active-buoy highlighting and a committee-boat finish line
+- Automatic overhead tactical view within five yacht lengths of another yacht or buoy
 - Deterministic enforcement of basic RRS 10–14, 18, and 31 with penalty turns
 - Il Moro di Venezia V-inspired four-plane yachts with slender deep-red topsides, pale deck insets, dark rigs, hull waterlines, cockpit crew, panelled sails, and radial team spinnakers
-- Five authored late-1990s-style panoramas reduced to compact one-plane runtime skyline silhouettes
+- Five authored late-1990s-style panoramas stored as row-compressed 8-bit indexed landscapes
 - Eight-voice stereo tracker score
 - Allocation-free update/draw loop suitable for the physical ESP32-C6 profile
 - Store metadata and ESP32-C6/QEMU variants
