@@ -193,7 +193,8 @@ def capture(name: str, duration: float, fps: int, warmup: float, ffmpeg: str,
         raw_video = temp / "qemu-window.mov"
         shutil.copy2(ROOT / "build-qemu/qemu_flash.bin", flash)
         shutil.copy2(ROOT / "build-qemu/qemu_efuse.bin", efuse)
-        subprocess.run(["python3", "-m", "prg32", "qemu", "upload", str(cartridge),
+        adapter = Path(__file__).resolve().parent / "prg32_cli_64.py"
+        subprocess.run(["python3", str(adapter), "qemu", "upload", str(cartridge),
                         "--flash", str(flash)], cwd=ROOT, check=True)
         command = [
             "qemu-system-riscv32", "-M", "esp32c3", "-m", "4M",

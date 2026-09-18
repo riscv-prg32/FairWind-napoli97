@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — 64 KiB profile refresh
+
+- Migrated the cartridge and package guards to PRG32's 64 KiB limits.
+- Restored distinct mainsail, jib, and team-coloured spinnaker layers for every heading.
+- Added five authored one-plane Bay of Naples skyline silhouettes to the live race renderer.
+- Added a temporary build/upload adapter for the upstream Python fallback that still reports 32 KiB.
+
 ## 3.0.0 — 2026-09-18
 
 - Renamed the game and cartridge to `NaCup-napoli97`.
@@ -88,7 +95,7 @@
 - Reworked team management around sponsors, income, prizes, and development spending.
 - Added sponsor progression driven by race wins.
 - Added five venue-specific Bay of Naples landscapes.
-- Enforced both the 32 KiB execution-RAM and 128 KiB packaged-cartridge limits.
+- Enforced the portable execution-RAM and packaged-cartridge limits current at release time.
 - Replaced schematic skyline primitives with five detailed planar Bay of Naples panoramas.
 
 ## 1.0.0 — 2026-09-17

@@ -4,7 +4,7 @@
 - Build with a current `PRG32_ROOT` using `./build.sh`.
 - Play all five races on QEMU and ESP32-C6 hardware.
 - Confirm left/right stereo separation on physical speakers.
-- Confirm both cartridge files stay below the firmware's 128 KiB package limit.
+- Confirm each cartridge file stays below the firmware's 64 KiB package limit.
 - Run two-, three-, and four-board races through the PRG32 MultiplayerServer.
 - Verify every Bay of Naples skyline on physical ILI9341 hardware.
 - Inspect composed hull, mainsail, jib, and all four spinnaker colours on hardware.

@@ -8,16 +8,21 @@ assert 'sprite(&hull_sprite,nacup_hull_planes,nacup_palette,32,32,16,4,0)' in s
 assert 'sprite(&main_sprite,nacup_main_planes,nacup_sail_palette,32,32,16,2,0)' in s
 assert 'nacup_hull_palette[256]' in h
 assert 'nacup_sail_palette[4]' in h
-for component in ('hull','main','spin'):
+for component in ('hull','main','jib','spin'):
     assert f'nacup_{component}_planes' in h
-assert 'nacup_spin_palettes[4]' in h
+for i in range(4): assert f'nacup_spin_palette{i}[4]' in h
+assert 'nacup_spin_palettes' not in h and 'spin_palette(b->team)' in s
 generator=(r/'tools/generate_assets.py').read_text()
 assert 'Il Moro di Venezia V-inspired IACC form' in generator
 assert '(98,18,24)' in generator and '(207,39,45)' in generator
-assert 'static void landscape(void)' in s and 'nacup_background_planes' not in h
+assert 'nacup_background_planes' in h and 'sprite(&background_sprite' in s
 assert 'NAPOLI 1997' in s and 'RACES 5' in s
 assert 'prg32_multiplayer_join' in (r/'src/platform.h').read_text()
 assert '--portable --multiplayer' in (r/'build.sh').read_text()
+build_script=(r/'build.sh').read_text()
+assert '65536' in build_script and '131072' not in build_script
+adapter=(r/'tools/prg32_cli_64.py').read_text()
+assert 'RAM_SIZE = 64 * 1024' in adapter and adapter.count('FALLBACK_CART_RAM_SIZE = RAM_SIZE')==3
 assert 'sponsors[4]' in s and 'money+=' in s and 'wins++' in s
 assert 'count>3?3:count' in (r/'src/platform.h').read_text()
 assert 'for(i=0;i<peer_count;i++)' in s and 'peer_count+1' in s
@@ -58,4 +63,5 @@ assert meta['players']=={'min':1,'max':4}
 assert meta['name']=='NaCup-napoli97' and meta['id']=='org.riscv-prg32.nacup-napoli97'
 assert meta['version']=='3.0.0' and 'selectable-courses' in meta['features']
 assert 'basic-rrs-rules' in meta['features']
+assert meta['cartridge_profile']=='portable-64k'
 print('source checks: OK; basic RRS engine, refined yachts, courses, start/finish, polars, audio, and multiplayer verified')

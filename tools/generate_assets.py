@@ -150,9 +150,16 @@ def arr(name,data):
 
 hulls=[component(a,'hull')[0] for a in range(16)]
 mains=[component(a,'main',0)[0] for a in range(16)]
-jibs=[component(a,'jib',side)[0] for side in range(2) for a in range(16)]
+jibs=[component(a,'jib',0)[0] for a in range(16)]
 spins=[component(a,'spin',0)[0] for a in range(16)]
 m=mark(); c=cup(); backgrounds=[authored_panorama(i) for i in range(5)]; GEN.mkdir(parents=True,exist_ok=True)
+runtime_backgrounds=[]
+for background in backgrounds:
+    source=background.crop((0,0,320,33))
+    silhouette=Image.new('P',source.size,0)
+    silhouette.putpalette([101,187,255,57,63,59]+[0]*762)
+    silhouette.putdata([0 if index in (3,4,14) else 1 for index in source.get_flattened_data()])
+    runtime_backgrounds.append(silhouette)
 def paste_indexed(dst,b,pos):
     art=b.convert('RGB').resize((64,64),Image.Resampling.NEAREST)
     # Build the transparency mask from palette indices directly. Converting a
@@ -179,10 +186,10 @@ text='#ifndef NACUP_ASSETS_BITPLANES_H\n#define NACUP_ASSETS_BITPLANES_H\n#inclu
 text+=f'static const uint16_t nacup_palette[16]={{{pal}}};\n'
 text+=f'static const uint16_t nacup_hull_palette[256]={{{boat_pal}}};\n'
 text+=f'static const uint16_t nacup_sail_palette[4]={{{sail_pal}}};\n'
+text+=f'static const uint16_t nacup_background_palette[2]={{0x{rgb565((101,187,255)):04x},0x{rgb565((57,63,59)):04x}}};\n'
 for i,(bright,dark) in enumerate(SPIN_COLORS):
     sp=[(0,0,0),bright,dark,(255,255,255)]
     text+=f'static const uint16_t nacup_spin_palette{i}[4]={{'+', '.join(f'0x{rgb565(x):04x}' for x in sp)+'};\n'
-text+='static const uint16_t *const nacup_spin_palettes[4]={nacup_spin_palette0,nacup_spin_palette1,nacup_spin_palette2,nacup_spin_palette3};\n'
-text+=arr('nacup_hull_planes',planar(hulls,32,32,4))+arr('nacup_main_planes',planar(mains,32,32,2))+arr('nacup_spin_planes',planar(spins,32,32,2))+arr('nacup_mark_planes',planar([m],16,16))+arr('nacup_cup_planes',planar([c],32,40))+'#endif\n'
+text+=arr('nacup_hull_planes',planar(hulls,32,32,4))+arr('nacup_main_planes',planar(mains,32,32,2))+arr('nacup_jib_planes',planar(jibs,32,32,2))+arr('nacup_spin_planes',planar(spins,32,32,2))+arr('nacup_mark_planes',planar([m],16,16))+arr('nacup_cup_planes',planar([c],32,40))+arr('nacup_background_planes',planar(runtime_backgrounds,320,33,1))+'#endif\n'
 OUT.write_text(text)
 print(f'wrote {OUT} ({OUT.stat().st_size} bytes)')
