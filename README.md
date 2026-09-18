@@ -100,6 +100,13 @@ PRG32_ROOT=/path/to/current/PRG32 ./build.sh
 
 The build passes both `--portable` and `--multiplayer`. It rejects either generated `.prg32` file if it exceeds 131,072 bytes and produces `dist/NaCup-napoli97-3.0.0-store.zip`.
 
+## Store media
+
+- [60-second audiovisual preview](release-artifacts/NaCup-napoli97-preview-60s.mp4)
+- [Store screenshot set](release-artifacts/store-screenshots/)
+
+The preview audio and menu frames come from the deterministic QEMU capture workflow in `tools/capture_qemu_demo.py`; authored 320×200 gameplay renders complete the store-safe edit.
+
 ## Fiction notice
 
 The Naples 1997 event, teams, sponsors, results, and characters are fictional. Il Moro di Venezia V is used only as a historical visual reference. This project is not affiliated with any real America's Cup organization or syndicate.
