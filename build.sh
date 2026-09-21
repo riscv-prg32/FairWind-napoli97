@@ -3,7 +3,7 @@ set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"; ROOT="${PRG32_ROOT:-}"
 if [[ -z "$ROOT" || ! -d "$ROOT/prg32" ]]; then echo "Set PRG32_ROOT to a current PRG32 checkout" >&2; exit 2; fi
 python3 "$HERE/tools/generate_assets.py"
-python3 "$HERE/tests/source_checks.py"; bash "$HERE/tests/host_syntax.sh"
+python3 "$HERE/tests/source_checks.py"; bash "$HERE/tests/host_syntax.sh"; bash "$HERE/tests/run_harness.sh"
 BUILD="$HERE/build"; DIST="$HERE/dist"; STORE="$DIST/store"; rm -rf "$BUILD" "$STORE"; mkdir -p "$BUILD" "$STORE"
 cd "$ROOT"
 python3 tools/prg32audio_pack.py "$HERE/audio.json" --out "$BUILD/nacup-audio.block"
