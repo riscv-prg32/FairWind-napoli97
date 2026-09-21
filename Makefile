@@ -5,6 +5,7 @@ assets:
 test: assets
 	python3 tests/source_checks.py
 	bash tests/host_syntax.sh
+	bash tests/run_harness.sh
 build:
 	./build.sh
 package: test
