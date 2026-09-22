@@ -14,6 +14,14 @@ static int g_track_plays[16];
 static int g_multiplayer_join_result = 1; /* pretend join always succeeds */
 static int g_peer_count = 0;
 static int g_local_ready_seen = 0;
+/* Per-peer overrides so scenarios can model real snapshots: stable ids that
+   survive a disconnect, lobby (y=0) vs racing positions, and chosen teams. */
+static uint32_t g_peer_ids[3] = {0, 1, 2};
+static int16_t g_peer_y[3] = {150, 150, 150};
+static uint16_t g_peer_flags[3] = {(0 << 3) | 0x40, (1 << 3) | 0x40, (2 << 3) | 0x40};
+static void reset_peers(void) {
+    for (int i = 0; i < 3; i++) { g_peer_ids[i] = (uint32_t)i; g_peer_y[i] = 150; g_peer_flags[i] = (uint16_t)(((i & 3) << 3) | 0x40); }
+}
 
 static void note_rect(int x, int y, int w, int h) {
     g_gfx_calls++;
@@ -49,11 +57,11 @@ int prg32_multiplayer_set_input(uint32_t in) { (void)in; return 0; }
 int prg32_multiplayer_get_peer_count(void) { return g_peer_count; }
 int prg32_multiplayer_get_peer(int index, prg32_player_state_t *peer) {
     if (index < 0 || index >= g_peer_count) return -1;
-    peer->player_id = (uint32_t)index;
+    peer->player_id = g_peer_ids[index];
     peer->x = (int16_t)(100 + index * 20);
-    peer->y = (int16_t)(150);
+    peer->y = g_peer_y[index];
     peer->sprite = 16; /* heading */
-    peer->flags = (uint8_t)(((index & 3) << 3) | 0x40);
+    peer->flags = g_peer_flags[index];
     peer->input = 0; peer->frame = 0; peer->last_seen_ms = 0;
     return 0;
 }
@@ -73,7 +81,7 @@ static const char *screen_name(screen_t s) {
    per scenario in the same process, so stale last_input from a previous
    scenario's final held button can swallow the next scenario's first tap.
    Clear it explicitly so each scenario starts from a clean edge-detect state. */
-static void reset_harness_globals(void) { last_input = 0; g_input = 0; }
+static void reset_harness_globals(void) { last_input = 0; g_input = 0; g_peer_count = 0; reset_peers(); }
 static void tap(uint32_t btn) { g_input = btn; nacup_update(); g_input = 0; nacup_update(); }
 
 static int failures = 0;
@@ -253,6 +261,105 @@ static void run_multiplayer_disconnect_scenario(void) {
     printf("multiplayer disconnect scenario: reached race_clock=%d start_clock=%d without crashing\n", race_clock, start_clock);
 }
 
+/* Navigate a fresh campaign to the multiplayer lobby with n visible peers. */
+static void enter_lobby(int n) {
+    reset_harness_globals();
+    nacup_init();
+    tap(PRG32_BTN_A);
+    multiplayer = 1;
+    tap(PRG32_BTN_A);
+    tap(PRG32_BTN_A);
+    menu = 5;
+    tap(PRG32_BTN_A);
+    g_peer_count = n;
+    tap(PRG32_BTN_A);
+}
+
+static void run_lobby_handshake_scenario(void) {
+    /* A peer still in the lobby and not ready must hold the start. */
+    enter_lobby(1);
+    g_peer_y[0] = 0; g_peer_flags[0] = (uint16_t)(1 << 3);
+    for (int i = 0; i < 200; i++) { g_input = PRG32_BTN_A; nacup_update(); }
+    g_input = 0;
+    CHECK(screen == ST_LOBBY, "lobby: must wait for a peer that is not ready");
+    /* The peer saw us ready first and is already racing: its published flags
+       now carry race state (0x40 = crossed line, clear in pre-start). */
+    g_peer_y[0] = 112; g_peer_flags[0] = (uint16_t)(1 << 3);
+    nacup_update();
+    CHECK(screen == ST_RACE, "lobby: a peer that already started racing must count as ready (no deadlock)");
+    /* A lingering lobby snapshot must not teleport that yacht to (0,0). */
+    g_peer_y[0] = 0;
+    nacup_update();
+    CHECK(boats[1].y >= 28, "lobby: y=0 lobby snapshot must not be applied to a racing yacht");
+    printf("lobby handshake: race started once peer was racing\n");
+}
+
+static void run_stable_slot_scenario(void) {
+    enter_lobby(3);
+    g_peer_ids[0] = 100; g_peer_ids[1] = 200; g_peer_ids[2] = 300;
+    g_peer_flags[0] = (uint16_t)((1 << 3) | 0x40); g_peer_flags[1] = (uint16_t)((2 << 3) | 0x40); g_peer_flags[2] = (uint16_t)((3 << 3) | 0x40);
+    while (screen == ST_LOBBY) { g_input = PRG32_BTN_A; nacup_update(); g_input = 0; }
+    nacup_update();
+    CHECK(net_live[1] && net_live[2] && net_live[3], "slots: all three peers bound");
+    CHECK(net_ids[1] == 100 && net_ids[2] == 200 && net_ids[3] == 300, "slots: peers bound in join order");
+    /* Remote penalties belong to the remote console and must not stick here. */
+    boats[2].penalty = 1; boats[2].rule = RULE_PORT;
+    nacup_update();
+    CHECK(!boats[2].penalty && boats[2].rule == RULE_NONE, "slots: remote yacht penalty must be cleared each snapshot");
+    /* Peer 100 leaves: the firmware list compacts to [200,300]. */
+    g_peer_ids[0] = 200; g_peer_ids[1] = 300; g_peer_flags[0] = g_peer_flags[1]; g_peer_flags[1] = g_peer_flags[2];
+    g_peer_count = 2;
+    nacup_update();
+    CHECK(!net_live[1], "slots: the departed peer's slot must pass to the AI");
+    CHECK(net_live[2] && net_ids[2] == 200 && net_live[3] && net_ids[3] == 300, "slots: remaining peers must keep their slots");
+    CHECK(peer_count == 2, "slots: peer_count must track bound peers");
+    printf("stable slots: departed peer handed to AI, others kept their yachts\n");
+}
+
+static void run_ai_takeover_scenario(void) {
+    /* A peer that disconnects after starting must be sailed round the course
+       by the AI, not steered south as if it had never entered the box. */
+    enter_lobby(1);
+    g_peer_flags[0] = (uint16_t)((1 << 3) | 0x40);
+    while (screen == ST_LOBBY) { g_input = PRG32_BTN_A; nacup_update(); g_input = 0; }
+    start_clock = 0; start_line_active = 0;
+    g_peer_y[0] = 100;
+    nacup_update();
+    CHECK(boats[1].started && boats[1].entered_box, "takeover: a started remote yacht is known to have entered the box");
+    g_peer_count = 0;
+    int legs_before = boats[1].leg, min_y = boats[1].y;
+    for (int i = 0; i < 6000 && screen == ST_RACE && boats[1].leg == legs_before; i++) { nacup_update(); if (boats[1].y < min_y) min_y = boats[1].y; }
+    CHECK(min_y < 100, "takeover: AI must head upwind towards the first mark");
+    CHECK(boats[1].leg > legs_before, "takeover: AI must round the next mark for a disconnected started peer");
+    printf("ai takeover: slot 1 advanced from leg %d to %d\n", legs_before, boats[1].leg);
+}
+
+static void run_ai_team_scenario(void) {
+    enter_lobby(1);
+    team_sel = 0;
+    g_peer_flags[0] = (uint16_t)((2 << 3) | 0x40); /* peer chose ATLANTIC UNION, the default AI team for slot 2 */
+    while (screen == ST_LOBBY) { g_input = PRG32_BTN_A; nacup_update(); g_input = 0; }
+    nacup_update(); /* first race frame applies the peer snapshot */
+    unsigned used = 0;
+    for (int i = 0; i < 4; i++) used |= 1u << boats[i].team;
+    CHECK(used == 15u, "teams: AI must take the syndicates no human picked");
+    printf("ai teams: fleet teams %d %d %d %d\n", boats[0].team, boats[1].team, boats[2].team, boats[3].team);
+}
+
+static void run_dnf_order_scenario(void) {
+    reset_harness_globals();
+    nacup_init();
+    tap(PRG32_BTN_A); multiplayer = 0; tap(PRG32_BTN_A); tap(PRG32_BTN_A);
+    menu = 5; tap(PRG32_BTN_A); tap(PRG32_BTN_A);
+    CHECK(screen == ST_RACE, "dnf: race should start");
+    start_clock = 0; race_clock = RACE_LIMIT_SECONDS; race_frames = SIM_FRAMES_PER_SECOND - 1;
+    for (int i = 0; i < 4; i++) { boats[i].started = 1; boats[i].leg = (uint8_t)i; boats[i].x = 20 + i * 90; boats[i].y = 100; }
+    nacup_update();
+    CHECK(screen == ST_RESULT, "dnf: time limit ends the race");
+    CHECK(result_order[0] == 3 && result_order[3] == 0, "dnf: unfinished yachts are ranked by course progress");
+    printf("dnf order: %d %d %d %d\n", result_order[0], result_order[1], result_order[2], result_order[3]);
+}
+
 int main(void) {
     printf("== single player full season ==\n");
     run_one_full_season(1);
@@ -260,6 +367,16 @@ int main(void) {
     run_multiplayer_smoke();
     printf("== multiplayer mid-race disconnect scenario ==\n");
     run_multiplayer_disconnect_scenario();
+    printf("== lobby ready handshake ==\n");
+    run_lobby_handshake_scenario();
+    printf("== stable peer slots ==\n");
+    run_stable_slot_scenario();
+    printf("== AI takeover of started peer ==\n");
+    run_ai_takeover_scenario();
+    printf("== AI team assignment ==\n");
+    run_ai_team_scenario();
+    printf("== DNF ordering ==\n");
+    run_dnf_order_scenario();
     printf("== fuzz seasons ==\n");
     for (uint32_t seed = 1; seed <= 40; seed++) run_fuzz_season(seed * 2654435761u, seed <= 3);
     printf("gfx bbox seen: x[%d,%d] y[%d,%d] over %ld calls\n", g_min_x, g_max_x, g_min_y, g_max_y, g_gfx_calls);

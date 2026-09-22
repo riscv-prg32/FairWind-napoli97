@@ -43,8 +43,17 @@ d.rectangle((74,158,101,161),fill='white');d.rectangle((78,162,97,165),fill=(4,1
 d.line((101,158,218,158),fill='white',width=2);mark(226,158)
 boat(207,110,1,(0,210,230));boat(172,124,0,(230,25,25));boat(132,93,15,(255,205,20));boat(93,119,14,'white')
 d.rectangle((0,181,319,199),fill=(4,10,42));d.text((5,187),'R 08:42   KT 09   SW   JIB   NEXT 2   NET 4/4',font=font,fill='white')
-im.save(o/'screenshot.png');im.save(o/'course_paths.png')
-icon=Image.new('RGB',(256,256),(3,65,145));q=ImageDraw.Draw(icon);q.ellipse((22,22,234,234),outline=(255,205,20),width=10);q.polygon([(128,38),(91,191),(128,219),(165,191)],fill='white');q.polygon([(128,55),(128,175),(203,167)],fill=(220,225,230));label='NaCup';bb=q.textbbox((0,0),label,font=font);q.text(((256-(bb[2]-bb[0]))//2,222),label,font=font,fill=(255,205,20));icon.save(o/'icon.png')
+# Store images count toward the 64 KiB package ceiling, so they are saved
+# losslessly as small as possible: a palette PNG when the image fits one.
+def save_compact(img,path):
+ colors=img.getcolors(256)
+ if colors:
+  pal=img.quantize(colors=len(colors),method=Image.Quantize.FASTOCTREE,dither=Image.Dither.NONE)
+  assert pal.convert('RGB').tobytes()==img.tobytes(),path
+  img=pal
+ img.save(path,optimize=True)
+save_compact(im,o/'screenshot.png');im.save(o/'course_paths.png')
+icon=Image.new('RGB',(256,256),(3,65,145));q=ImageDraw.Draw(icon);q.ellipse((22,22,234,234),outline=(255,205,20),width=10);q.polygon([(128,38),(91,191),(128,219),(165,191)],fill='white');q.polygon([(128,55),(128,175),(203,167)],fill=(220,225,230));label='NaCup';bb=q.textbbox((0,0),label,font=font);q.text(((256-(bb[2]-bb[0]))//2,222),label,font=font,fill=(255,205,20));save_compact(icon,o/'icon.png')
 
 title=Image.new('RGB',(320,200),(3,65,145));t=ImageDraw.Draw(title)
 t.rectangle((0,0,319,18),fill=(4,10,42));t.text((6,5),'NaCup',font=font,fill='white');t.text((238,5),'NAPOLI 1997',font=font,fill=(255,205,20))

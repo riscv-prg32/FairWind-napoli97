@@ -9,6 +9,14 @@
 - Preserved distinct mainsail, jib, and spinnaker geometry in precomposed heading frames.
 - Added five authored one-plane Bay of Naples skyline silhouettes to the live race renderer.
 - Added a temporary build/upload adapter for the upstream Python fallback that still reports 32 KiB.
+- Fixed a multiplayer lobby deadlock: a peer that has already started racing now counts as ready.
+- Bound remote peers to fleet slots by player id, so a disconnect hands only that yacht to the AI.
+- AI takeover of a remote yacht that already started now continues round the course.
+- Remote yachts' penalties are owned by their console and no longer suppress local rule checks.
+- AI yachts take the syndicates no human picked in multiplayer fleets.
+- Time-limit DNFs are ranked by course progress instead of fleet slot.
+- Store icon and screenshot are saved as lossless compact PNGs, widening the 64 KiB package headroom.
+- Added behavioural harness scenarios for each fix; the harness temp file now works with GNU mktemp.
 
 ## 3.0.0 — 2026-09-18
 
