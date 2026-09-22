@@ -99,7 +99,7 @@ make test
 PRG32_ROOT=/path/to/current/PRG32 ./build.sh
 ```
 
-The build passes both `--portable` and `--multiplayer`. It rejects either generated `.prg32` file if it exceeds 131,072 bytes and produces `dist/NaCup-napoli97-3.0.0-store.zip`.
+The build passes both `--portable` and `--multiplayer`. It rejects either generated `.prg32` file if it exceeds 65,536 bytes and produces `dist/NaCup-napoli97-<version>-store.zip`.
 
 ## Store media
 

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — 64 KiB profile refresh
+## 3.1.0 — 2026-09-22 — 64 KiB profile refresh
 
 - Migrated the cartridge and package guards to PRG32's 64 KiB limits.
 - Restored five 8-bit indexed Bay landscapes with row-safe RLE compression.

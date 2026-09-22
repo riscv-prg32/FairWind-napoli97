@@ -17,4 +17,4 @@
 - Confirm the main and jib occupy the same leeward side at every heading and remain legible over all five panoramas.
 - Confirm the SW course-up convention, constrained wind shifts, flat water glints, and constant yacht scale.
 - Confirm title, information band, icon, lobby, metadata, multiplayer rooms, and binaries all use `NaCup-napoli97`/`nacup` consistently.
-- Publish `dist/NaCup-napoli97-3.0.0-store.zip` and checksums.
+- Publish `dist/NaCup-napoli97-<version>-store.zip` and checksums.
