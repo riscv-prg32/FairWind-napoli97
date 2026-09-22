@@ -17,6 +17,8 @@
 - Time-limit DNFs are ranked by course progress instead of fleet slot.
 - Store icon and screenshot are saved as lossless compact PNGs, widening the 64 KiB package headroom.
 - Added behavioural harness scenarios for each fix; the harness temp file now works with GNU mktemp.
+- Store bundle manifest is now generated from `metadata/*.json` with `abi: prg32-metadata-1.0`, the splash screenshot, and an inline colophon; the previous hand-written manifest was rejected by Cartridge Store intake.
+- `build.sh` validates the bundle with the Cartridge Store's own intake code when `CARTRIDGE_STORE_ROOT` is set.
 
 ## 3.0.0 — 2026-09-18
 

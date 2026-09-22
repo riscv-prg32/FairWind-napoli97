@@ -1,7 +1,7 @@
 # Release checklist
 
 - Run `make test`.
-- Build with a current `PRG32_ROOT` using `./build.sh`.
+- Build with a current `PRG32_ROOT` and `CARTRIDGE_STORE_ROOT` using `./build.sh`; the Store intake check must pass.
 - Play all five races on QEMU and ESP32-C6 hardware.
 - Confirm left/right stereo separation on physical speakers.
 - Confirm each cartridge file stays below the firmware's 64 KiB package limit.
