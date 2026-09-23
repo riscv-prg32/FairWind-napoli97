@@ -1,7 +1,7 @@
 # Release checklist
 
 - Run `make test`.
-- Build with a current `PRG32_ROOT` using `./build.sh`.
+- Build with a current `PRG32_ROOT` and `CARTRIDGE_STORE_ROOT` using `./build.sh`; the Store intake check must pass.
 - Play all five races on QEMU and ESP32-C6 hardware.
 - Confirm left/right stereo separation on physical speakers.
 - Confirm each cartridge file stays below the firmware's 64 KiB package limit.
@@ -17,4 +17,4 @@
 - Confirm the main and jib occupy the same leeward side at every heading and remain legible over all five panoramas.
 - Confirm the SW course-up convention, constrained wind shifts, flat water glints, and constant yacht scale.
 - Confirm title, information band, icon, lobby, metadata, multiplayer rooms, and binaries all use `NaCup-napoli97`/`nacup` consistently.
-- Publish `dist/NaCup-napoli97-3.0.0-store.zip` and checksums.
+- Publish `dist/NaCup-napoli97-<version>-store.zip` and checksums.

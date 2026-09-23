@@ -64,7 +64,7 @@ assert voices==set(range(8)),voices
 meta=json.loads((r/'metadata/metadata.json').read_text())
 assert meta['players']=={'min':1,'max':4}
 assert meta['name']=='NaCup-napoli97' and meta['id']=='org.riscv-prg32.nacup-napoli97'
-assert meta['version']=='3.0.0' and 'selectable-courses' in meta['features']
+assert meta['version']=='3.1.0' and 'selectable-courses' in meta['features']
 assert 'basic-rrs-rules' in meta['features']
 assert meta['cartridge_profile']=='portable-64k'
 print('source checks: OK; basic RRS engine, refined yachts, courses, start/finish, polars, audio, and multiplayer verified')

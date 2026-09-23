@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — 64 KiB profile refresh
+## 3.1.0 — 2026-09-22 — 64 KiB profile refresh
 
 - Migrated the cartridge and package guards to PRG32's 64 KiB limits.
 - Restored five 8-bit indexed Bay landscapes with row-safe RLE compression.
@@ -9,6 +9,16 @@
 - Preserved distinct mainsail, jib, and spinnaker geometry in precomposed heading frames.
 - Added five authored one-plane Bay of Naples skyline silhouettes to the live race renderer.
 - Added a temporary build/upload adapter for the upstream Python fallback that still reports 32 KiB.
+- Fixed a multiplayer lobby deadlock: a peer that has already started racing now counts as ready.
+- Bound remote peers to fleet slots by player id, so a disconnect hands only that yacht to the AI.
+- AI takeover of a remote yacht that already started now continues round the course.
+- Remote yachts' penalties are owned by their console and no longer suppress local rule checks.
+- AI yachts take the syndicates no human picked in multiplayer fleets.
+- Time-limit DNFs are ranked by course progress instead of fleet slot.
+- Store icon and screenshot are saved as lossless compact PNGs, widening the 64 KiB package headroom.
+- Added behavioural harness scenarios for each fix; the harness temp file now works with GNU mktemp.
+- Store bundle manifest is now generated from `metadata/*.json` with `abi: prg32-metadata-1.0`, the splash screenshot, and an inline colophon; the previous hand-written manifest was rejected by Cartridge Store intake.
+- `build.sh` validates the bundle with the Cartridge Store's own intake code when `CARTRIDGE_STORE_ROOT` is set.
 
 ## 3.0.0 — 2026-09-18
 
