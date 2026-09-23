@@ -17,4 +17,29 @@ Boat speeds are stored in tenths of a knot. The game uses the published 8, 12, a
 | 150° | 5.7 | 7.9 | 9.1 |
 | 180° | 5.0 | 6.9 | 8.2 |
 
-The ORC values represent a rated performance target, not an instrument-grade simulator. Team and management upgrades apply small multipliers after polar interpolation. The spinnaker rule then penalizes downwind sailing without the sail and upwind sailing with it incorrectly deployed.
+Two rows extend the table into the no-go zone: 0 kt at 28° TWA and roughly two thirds of the 40° speed at 34°, so a yacht pinching or luffing head to wind slows and coasts to a stop instead of creeping forward. Below 8 kt TWS the 8-knot column is scaled linearly; above 16 kt it is held.
+
+| TWA | 8 kt TWS | 12 kt TWS | 16 kt TWS |
+|---:|---:|---:|---:|
+| 28° | 0.0 | 0.0 | 0.0 |
+| 34° | 4.0 | 4.6 | 4.8 |
+
+The ORC rows at and above 110° assume a kite. The runtime therefore applies a sail-plan efficiency, interpolated on the same TWA rows and blended by hoist progress while a kite goes up or comes down:
+
+| TWA | Jib | Spinnaker | Gennaker |
+|---:|---:|---:|---:|
+| ≤60° | 100% | 40–45% | 50–80% |
+| 75° | 100% | 60% | 102% |
+| 90° | 100% | 88% | 106% |
+| 110° | 90% | 100% | 104% |
+| 120° | 84% | 100% | 100% |
+| 135° | 78% | 100% | 95% |
+| 150° | 74% | 100% | 90% |
+| 180° | 72% | 100% | 82% |
+
+Several further factors apply:
+- **Trim.** A trim efficiency keeps full drive with about 18° angle of attack. It falls quadratically to zero as the sails luff and to 30% as they stall.
+- **Syndicate.** Performance multiplies speed by 97–113% for the player (hull, sails, strategy) and 102–103% for the AI.
+- **Momentum.** Speed approaches the target with 7–11 s acceleration and 14 s coasting time constants.
+
+The ORC values represent a rated performance target, not an instrument-grade simulator. The behavioural harness checks the result: a trimmed beam reach in 12 kt settles at 8.7 kt, close-hauled at 7.2 kt, and nothing exceeds 10.5 kt in 16 kt of breeze.

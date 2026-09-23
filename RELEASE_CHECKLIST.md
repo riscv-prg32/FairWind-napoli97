@@ -7,14 +7,18 @@
 - Confirm each cartridge file stays below the firmware's 64 KiB package limit.
 - Run two-, three-, and four-board races through the PRG32 MultiplayerServer.
 - Verify every Bay of Naples skyline on physical ILI9341 hardware.
-- Inspect composed hull, mainsail, jib, and all four spinnaker colours on hardware.
+- Inspect the procedural hull, mainsail, jib, spinnaker and gennaker in all four team colours on hardware, in the stern and top views.
+- Measure the race frame rate on ESP32-C6 hardware in the stern view with the full fleet and panorama in view.
 - Verify polar targets at 8, 12, and 16 knots TWS.
-- Verify the 10/5–4–2–1–start signals, port/starboard box entry, an early-return start, and line removal after the fourth crossing.
+- Verify the 10/5–4–2–1–start signals, the 20× to 4× time change at −2, port/starboard box entry, an early-return start, and line removal after the fourth crossing.
+- Verify Up/Down sheet trim (LUFF/GOOD/STALL), A spinnaker, B gennaker (mutually exclusive, timed hoists) and A+B penalty turns.
+- Verify the top view switches in within 70 m of a mark or rival and back beyond 100 m, and that the map, wind instrument and lift/header readout track the shifts.
+- Sail into each shore and the SW limit and confirm the yacht stops (`AGROUND` / `AREA LIMIT`).
 - Complete all three selectable courses and verify every `NEXT` highlight transition.
 - Verify that an early finish crossing is ignored and the valid finish runs between buoy and committee boat.
 - Trigger and serve Rules 10, 11, 12, 13, 18, and 31 penalties; verify contact separation under Rule 14.
-- Inspect the Il Moro-inspired narrow red hull, pale deck/sails, dark rig, fictional team trim, battens, crew, and all four radial spinnakers on ILI9341 hardware.
-- Confirm the main and jib occupy the same leeward side at every heading and remain legible over all five panoramas.
-- Confirm the SW course-up convention, constrained wind shifts, flat water glints, and constant yacht scale.
-- Confirm title, information band, icon, lobby, metadata, multiplayer rooms, and binaries all use `NaCup-napoli97`/`nacup` consistently.
-- Publish `dist/NaCup-napoli97-<version>-store.zip` and checksums.
+- Confirm the main and jib sit on the same leeward side at every heading, swing across in tacks and gybes, and stay legible over all five panoramas.
+- Confirm the SW course-up map, constrained wind shifts, and that each venue's panorama appears dead downwind.
+- Re-record the 60-second preview video with the stern-view engine.
+- Confirm title, information band, icon, lobby, metadata, multiplayer rooms, and binaries all use `FairWind-napoli97`/`fairwind` consistently.
+- Publish `dist/FairWind-napoli97-<version>-store.zip` and checksums.

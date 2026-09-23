@@ -1,7 +1,9 @@
-.PHONY: assets test build package
+.PHONY: assets screenshots test build package
 assets:
 	python3 tools/generate_assets.py
 	python3 tools/render_preview.py
+screenshots: assets
+	python3 tools/host_capture.py --store
 test: assets
 	python3 tests/source_checks.py
 	bash tests/host_syntax.sh

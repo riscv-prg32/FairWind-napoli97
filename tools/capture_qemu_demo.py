@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Capture a deterministic full-race NaCup demo with the PRG32 QEMU recorder."""
+"""Capture a deterministic full-race FairWind demo with the PRG32 QEMU recorder."""
 
 from pathlib import Path
 import importlib.util
@@ -30,10 +30,10 @@ events = (
 )
 
 recorder.ROOT = PRG32_ROOT
-recorder.CARTRIDGES["nacup"] = (
-    str(PROJECT_ROOT / "dist" / "store" / "NaCup-napoli97-qemu.prg32"),
-    str(PROJECT_ROOT / "release-artifacts" / "NaCup-napoli97-qemu-long.mp4"),
+recorder.CARTRIDGES["fairwind"] = (
+    str(PROJECT_ROOT / "dist" / "store" / "FairWind-napoli97-qemu.prg32"),
+    str(PROJECT_ROOT / "release-artifacts" / "FairWind-napoli97-qemu-long.mp4"),
     events,
 )
-recorder.capture("nacup", float(os.environ.get("NACUP_DEMO_DURATION", "135")),
+recorder.capture("fairwind", float(os.environ.get("FAIRWIND_DEMO_DURATION", "135")),
                  30, 7.0, "/opt/homebrew/bin/ffmpeg", True)

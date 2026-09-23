@@ -2,69 +2,76 @@ from pathlib import Path
 from PIL import Image
 import re, json
 r=Path(__file__).resolve().parents[1]
-s=(r/'src/game.c').read_text(); h=(r/'src/assets_bitplanes.h').read_text()
-assert 'prg32_sprite_draw_bitplanes' in (r/'src/platform.h').read_text()
-assert 'sprite(&jib_yacht_sprite,nacup_jib_yacht_planes,nacup_yacht_palette0,32,32,16,4,0)' in s
-assert 'sprite(&spin_yacht_sprite,nacup_spin_yacht_planes,nacup_yacht_palette0,32,32,16,4,0)' in s
-assert 'nacup_hull_palette[256]' in h
-assert 'nacup_sail_palette[4]' in h
-assert 'nacup_background_palette[16]' in h and 'nacup_background_rle8' in h
-for component in ('jib_yacht','spin_yacht'):
-    assert f'nacup_{component}_planes' in h
-for i in range(4): assert f'nacup_spin_palette{i}[4]' in h
-assert 'nacup_spin_palettes' not in h and 'yacht_palette(b->team)' in s
-generator=(r/'tools/generate_assets.py').read_text()
-assert 'Il Moro di Venezia V-inspired IACC form' in generator
-assert '(98,18,24)' in generator and '(207,39,45)' in generator
-assert 'nacup_background_offsets[6]' in h and 'nacup_background_rle8[i++]' in s
-assert 'NAPOLI 1997' in s and 'RACES 5' in s
-assert 'prg32_multiplayer_join' in (r/'src/platform.h').read_text()
-assert '--portable --multiplayer' in (r/'build.sh').read_text()
-build_script=(r/'build.sh').read_text()
-assert '65536' in build_script and '131072' not in build_script
+s=(r/'src/game.c').read_text(); h=(r/'src/assets_bitplanes.h').read_text(); m=(r/'src/fixmath.h').read_text()
+platform=(r/'src/platform.h').read_text(); generator=(r/'tools/generate_assets.py').read_text(); build_script=(r/'build.sh').read_text()
+# Portable 64 KiB cartridge, multiplayer build, no C library.
+assert 'prg32_sprite_draw_bitplanes' in platform and 'prg32_multiplayer_join' in platform
+assert '--portable --multiplayer' in build_script and '65536' in build_script and '131072' not in build_script
 adapter=(r/'tools/prg32_cli_64.py').read_text()
 assert 'RAM_SIZE = 64 * 1024' in adapter and adapter.count('FALLBACK_CART_RAM_SIZE = RAM_SIZE')==3
-assert 'sponsors[4]' in s and 'money+=' in s and 'wins++' in s
-assert 'count>3?3:count' in (r/'src/platform.h').read_text()
-assert 'for(i=0;i<peer_count;i++)' in s and 'peer_count+1' in s
-assert 'local_ready' in s and '0x40' in s
-assert 'polar8[11]' in s and 'polar12[11]' in s and 'polar16[11]' in s
-assert 'PRG32_BTN_A)boats[0].spinnaker' in s and '0x20' in s
-assert 'START_COUNTDOWN_SECONDS 600' in s and 'SIM_FRAMES_PER_SECOND 3' in s
-assert '10 MIN - WARNING' in s and '5 MIN - CLASS SIGNAL' in s
-assert '4 MIN - P FLAG UP' in s and '2 MIN - ENTER THE BOX' in s
-assert '1 MIN - P FLAG DOWN' in s and 'START - CLASS FLAG DOWN' in s
-assert 'entered_box' in s and 'START_BOX_LEFT' in s and 'if(all_started)start_line_active=0' in s
-assert 'boats[0].started?0x40:0' in s and 'b->started=(p.flags&0x40)!=0' in s
-assert 'course_names[COURSE_COUNT]' in s and 'course_len[COURSE_COUNT]={3,5,6}' in s
-assert 'WINDWARD / RUN' in s and 'OLYMPIC TRIANGLE' in s and '1992 IACC Z' in s
-assert 'FINISH_BOAT_X' in s and 'FINISH_BUOY_X' in s and 'draw_finish_line' in s
-assert 'target_box' in s and 'boats[0].leg==i' in s
-assert 'nacup_net_join(course_sel)' in s and ':v7-iacc92' in (r/'src/platform.h').read_text()
-for rule in ('RULE_PORT','RULE_WINDWARD','RULE_ASTERN','RULE_TACKING','RULE_CONTACT','RULE_MARK_ROOM','RULE_MARK_TOUCH'):
-    assert rule in s
-assert 'start_clock>240' in s and 'penalty_turn>=32' in s and 'serve_penalty' in s
-assert 'mark_dist2' in s and 'windward_score' in s and 'tack_timer=24' in s
-assert 'PREVAILING_SW_HEADING 0' in s and 'SW BREEZE 8-16 KT' in s
-assert 'TOP_VIEW_ENTER 65' in s and 'top_view_mode=(uint8_t)close_to_rival_or_buoy(TOP_VIEW_ENTER)' in s
-assert 'close_to_rival_or_buoy' in s and '"TOP VIEW"' in s
+assert 'void *memcpy(' in s and 'void *memset(' in s
+# Assets: only the cup and the five Bay panoramas remain as bitmaps; yachts,
+# sails and buoys are procedural, so no pre-rotated sprite sheets ship.
+assert 'fairwind_background_palette[16]' in h and 'fairwind_background_rle8' in h and 'fairwind_background_offsets[6]' in h
+assert 'fairwind_cup_planes' in h and 'yacht_planes' not in h and 'hull_palette' not in h
 assert "backgrounds=[authored_panorama(i) for i in range(5)]" in generator
 for i in range(5): assert (r/f'assets/source/panorama-{i}.png').is_file()
-sheet=Image.open(r/'assets/generated/boat_bitplane_sheet.png').convert('RGB')
-assert len(sheet.getcolors(maxcolors=1<<20))>=12
-assert (r/'assets/generated/title.png').is_file()
-for preview in ('main_sail_sprite_sheet.png','jib_sprite_sheet.png'):
-    assert len(Image.open(r/'assets/generated'/preview).convert('RGB').getcolors(maxcolors=1<<20))>1
 assert len(re.findall(r'0x[0-9a-f]{2}',h)) > 9000
+# Fixed-point maths: integer trig, CORDIC bearing, integer sqrt.
+assert 'sin_quarter[65]' in m and 'cordic_atan[14]' in m and 'static uint16_t bearing(' in m and 'static int32_t isqrt(' in m
+# Chase camera from the stern, perspective projection and near/side clipping.
+assert '#define CAM_BACK' in s and '#define FOCAL' in s and 'static void proj(' in s and 'static int32_t plane_d(' in s
+assert 'p->x*FOCAL/p->z' in s and 'NEAR_DM' in s and 'static void poly3(' in s and 'static void line3(' in s
+# Race field larger than the view, simplified map, land that cannot be sailed on.
+assert 'FIELD_X 900' in s and 'FIELD_Y0 (-450)' in s and 'FIELD_Y1 1250' in s
+assert 'static void draw_minimap(void)' in s and 'b->aground=(uint8_t)clamp_field(b)' in s and 'static void shore_wall(' in s
+assert 'static void draw_horizon(void)' in s and 'panorama(HOR-24,off)' in s
+# Wind with deterministic shifts and a wind instrument.
+assert 'static void update_wind(void)' in s and 'wind_seed' in s and 'static void draw_wind_gauge(void)' in s
+assert 'PREVAILING_SW_HEADING 0' in s and 'SW 8-16 KT, SHIFTING' in s
+# ORC 12mR polars, sail plans, trim model and momentum.
+assert 'polar8[13]' in s and 'polar12[13]' in s and 'polar16[13]' in s
+assert 'plan_jib[13]' in s and 'plan_spin[13]' in s and 'plan_genn[13]' in s
+assert 'static int trim_opt(int awa)' in s and 'static int trim_eff(const boat_t *b)' in s and 'tau=target>v?' in s
+assert 'b->boom' in s and 'side=b->awa>=0?-1:1' in s
+# Controls: helm, sheets, spinnaker (A), gennaker (B), A+B penalty.
+assert 'if(in&PRG32_BTN_UP)b->sheet' in s and 'if(in&PRG32_BTN_DOWN)b->sheet' in s
+assert 'me->kite_want==KITE_SPIN?KITE_NONE:KITE_SPIN' in s and 'me->kite_want==KITE_GENN?KITE_NONE:KITE_GENN' in s
+assert '(PRG32_BTN_A|PRG32_BTN_B))==(PRG32_BTN_A|PRG32_BTN_B)' in s and 'begin_penalty_turn(me)' in s
+assert 'b->kite_prog' in s and 'b->kite=b->kite_want' in s
+# Close-quarters top view with hysteresis.
+assert 'TOP_VIEW_ENTER 70' in s and 'TOP_VIEW_EXIT 100' in s and 'close_to_rival_or_buoy(top_view_mode?TOP_VIEW_EXIT:TOP_VIEW_ENTER)' in s and '"TOP VIEW"' in s
+# AI: timed start, VMG beats/runs with shift and layline tacking, rules, kites.
+assert 'static void helm_ai(boat_t *b)' in s and 'static uint16_t vmg_heading(' in s and 'layline_cos[4]' in s
+assert 'static uint16_t avoid_traffic(' in s and 'static int gives_way(' in s and 'kite_for(' in s and 'clear_water(b,45)' in s
+# Campaign, courses, start and finish.
+assert 'NAPOLI 1997' in s and 'RACES 5' in s and 'sponsors[4]' in s and 'money+=' in s and 'wins++' in s
+assert 'START_COUNTDOWN_SECONDS 600' in s and 'FAST_TIME_SCALE 20' in s and 'RACE_TIME_SCALE 4' in s
+assert '10 MIN - WARNING' in s and '5 MIN - CLASS SIGNAL' in s and '4 MIN - P FLAG UP' in s and '2 MIN - ENTER THE BOX' in s
+assert '1 MIN - P FLAG DOWN' in s and 'START - CLASS FLAG DOWN' in s
+assert 'entered_box' in s and 'BOX_HALF' in s and 'if(all_started)start_line_active=0' in s
+assert 'course_names[COURSE_COUNT]' in s and 'course_len[COURSE_COUNT]={3,5,6}' in s
+assert 'WINDWARD / RUN' in s and 'OLYMPIC TRIANGLE' in s and '1992 IACC Z' in s
+assert 'FINISH_Y' in s and 'FINISH_HALF' in s and 'boats[0].leg==it[i].idx' in s
+for rule in ('RULE_PORT','RULE_WINDWARD','RULE_ASTERN','RULE_TACKING','RULE_CONTACT','RULE_MARK_ROOM','RULE_MARK_TOUCH'):
+    assert rule in s
+assert 'start_clock>240' in s and 'b->turned>=65536u' in s and 'mark_dist2' in s and 'windward_score' in s
+# Multiplayer: v8 rooms, peer slots, lobby handshake, 16-bit snapshot fields.
+assert 'count>3?3:count' in platform and ':v8-iacc92' in platform and ':v8-olympic' in platform and ':v8-windward' in platform
+assert 'fairwind_net_join(course_sel)' in s and 'for(i=0;i<n;i++)if(fairwind_net_peer(i,&p)' in s and 'peer_count+1' in s
+assert 'local_ready' in s and 'peer.flags&0x140' in s and 'if(!(p.flags&0x100))continue;' in s
+# Store and release artwork.
+assert (r/'assets/generated/title.png').is_file() and (r/'assets/generated/screenshot.png').is_file()
+shot=Image.open(r/'assets/generated/screenshot.png').convert('RGB')
+assert shot.size==(320,200) and len(shot.getcolors(maxcolors=1<<20))>=12
 a=json.loads((r/'audio.json').read_text())
-assert len(a['instruments'])==8
-assert len(a['tracks'])==5
+assert len(a['instruments'])==8 and len(a['tracks'])==5
 voices={e.get('arg0') for t in a['tracks'] for e in t['events'] if e['command']=='NOTE_ON'}
 assert voices==set(range(8)),voices
 meta=json.loads((r/'metadata/metadata.json').read_text())
 assert meta['players']=={'min':1,'max':4}
-assert meta['name']=='NaCup-napoli97' and meta['id']=='org.riscv-prg32.nacup-napoli97'
-assert meta['version']=='3.1.0' and 'selectable-courses' in meta['features']
-assert 'basic-rrs-rules' in meta['features']
+assert meta['name']=='FairWind-napoli97' and meta['id']=='org.riscv-prg32.fairwind-napoli97'
+assert meta['version']=='4.0.0' and 'selectable-courses' in meta['features'] and 'stern-chase-view' in meta['features']
+assert 'basic-rrs-rules' in meta['features'] and 'wind-shifts' in meta['features']
 assert meta['cartridge_profile']=='portable-64k'
-print('source checks: OK; basic RRS engine, refined yachts, courses, start/finish, polars, audio, and multiplayer verified')
+print('source checks: OK; stern-view engine, sailing physics, wind shifts, AI, rules, courses, audio, and multiplayer verified')
