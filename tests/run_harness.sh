@@ -2,7 +2,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CC_BIN="${CC:-cc}"
-BIN="$(mktemp "${TMPDIR:-/tmp}/nacup-harness.XXXXXX")"
+BIN="$(mktemp "${TMPDIR:-/tmp}/fairwind-harness.XXXXXX")"
 trap 'rm -f "$BIN"' EXIT
 SRC="$ROOT/tests/harness/run_harness.c"
 COMMON=(-std=c11 -Wall -Wextra -O1 -I"$ROOT/tests/stub" -I"$ROOT/src")

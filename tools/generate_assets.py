@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Generate deterministic 4-bitplane PRG32 sprites and store artwork."""
+"""Generate the PRG32 cup sprite, Bay of Naples panoramas and store artwork.
+
+Yachts, sails and buoys are drawn procedurally by the race engine, so no
+pre-rotated yacht sprites are generated any more."""
 from pathlib import Path
 from math import cos, sin, pi
 from PIL import Image, ImageDraw
@@ -8,79 +11,8 @@ ROOT=Path(__file__).resolve().parents[1]
 OUT=ROOT/'src'/'assets_bitplanes.h'
 GEN=ROOT/'assets'/'generated'
 PALETTE=[(0,0,0),(255,247,218),(2,38,99),(4,96,174),(54,174,217),(248,196,55),(207,39,45),(43,116,70),(64,82,110),(131,171,210),(232,125,50),(70,44,31),(218,190,139),(13,25,42),(111,181,235),(177,77,42)]
-BOAT_BASE=[(0,0,0),(255,255,255),(250,247,224),(224,231,232),(174,190,196),(36,47,61),(242,245,241),(121,143,153),(116,67,35),(239,185,38),(78,174,209),(28,37,48),(177,235,247),(207,39,45),(0,196,220),(245,205,42),(98,18,24),(0,91,119),(117,130,135),(208,216,211),(255,241,184),(68,87,95),(149,85,44),(236,104,48),(202,247,255),(73,125,155),(151,205,222),(231,230,208),(92,101,100),(255,156,72),(45,59,76),(13,25,42)]
-BOAT_PALETTE=BOAT_BASE+[(r,g,b) for r in (0,51,102,153,204,255) for g in (0,51,102,153,204,255) for b in (0,51,102,153,204,255)]+[(v,v,v) for v in (24,56,88,120,152,184,216,248)]
-SPIN_COLORS=[((0,210,230),(0,91,119)),((240,38,48),(125,16,25)),((181,85,232),(82,35,124)),((255,205,20),(190,118,0))]
-SAIL_PALETTE=[(0,0,0),(250,247,224),(185,205,210),(255,255,255)]
 
 def rgb565(c): return ((c[0]>>3)<<11)|((c[1]>>2)<<5)|(c[2]>>3)
-def poly(img,points,c): ImageDraw.Draw(img).polygon(points,fill=c)
-def boat(angle):
-    # Draw at 4x resolution, rotate there, then quantize to a dedicated
-    # 256-entry palette. This keeps rigging and sail edges legible at 32 px.
-    hi=Image.new('RGBA',(128,128),(0,0,0,0));d=ImageDraw.Draw(hi)
-    # Foaming wake, hull shadow, hull and deck.
-    d.polygon([(50,91),(39,123),(58,100)],fill=(177,235,247,150));d.polygon([(78,91),(89,123),(70,100)],fill=(177,235,247,150))
-    d.polygon([(64,6),(42,91),(64,121),(86,91)],fill=(36,47,61,255))
-    d.polygon([(64,9),(47,89),(64,115),(81,89)],fill=(242,245,241,255))
-    d.polygon([(64,16),(52,86),(64,105),(76,86)],fill=(174,190,196,255))
-    d.polygon([(64,22),(57,84),(64,96),(71,84)],fill=(116,67,35,255))
-    d.ellipse((57,79,71,94),fill=(28,37,48,255));d.ellipse((60,82,68,89),fill=(78,174,209,255))
-    # Main and jib, with separate shaded panels and seams.
-    d.polygon([(67,17),(67,83),(112,73)],fill=(250,247,224,255));d.polygon([(70,25),(70,76),(101,70)],fill=(224,231,232,255))
-    d.polygon([(61,24),(61,75),(25,67)],fill=(255,255,255,255));d.polygon([(58,34),(58,68),(34,64)],fill=(202,247,255,255))
-    d.line((64,12,64,94),fill=(28,37,48,255),width=3);d.line((64,18,111,73),fill=(121,143,153,255),width=1);d.line((64,24,25,67),fill=(121,143,153,255),width=1)
-    d.line((69,37,96,69),fill=(174,190,196,255),width=1);d.line((58,42,37,65),fill=(174,190,196,255),width=1)
-    d.line((64,82,98,75),fill=(116,67,35,255),width=3);d.ellipse((60,9,68,17),fill=(239,185,38,255))
-    turned=hi.rotate(-angle*360/32,resample=Image.Resampling.BICUBIC,center=(64,64))
-    small=turned.resize((32,32),Image.Resampling.LANCZOS)
-    palette_image=Image.new('P',(1,1));palette_image.putpalette(sum((list(c) for c in BOAT_PALETTE),[]))
-    rgb=Image.new('RGB',(32,32),(0,0,0));rgb.paste(small.convert('RGB'),mask=small.getchannel('A'))
-    out=rgb.quantize(palette=palette_image,dither=Image.Dither.NONE)
-    alpha=list(small.getchannel('A').get_flattened_data());pixels=list(out.get_flattened_data())
-    out.putdata([0 if a<72 else p for p,a in zip(pixels,alpha)])
-    return out
-def component(heading,kind,side=0):
-    hi=Image.new('RGBA',(128,128),(0,0,0,0));d=ImageDraw.Draw(hi)
-    if kind=='hull':
-        # Layered wake, deep hull shadow, fine waterline and tapered deck.
-        d.polygon([(50,88),(38,125),(58,102)],fill=(177,235,247,145));d.polygon([(78,88),(90,125),(70,102)],fill=(177,235,247,145));d.line((43,112,57,98),fill=(202,247,255,180),width=3);d.line((85,112,71,98),fill=(202,247,255,180),width=3)
-        # Il Moro di Venezia V-inspired IACC form: long narrow red hull,
-        # fine bow, broad working stern and a pale inset deck.
-        d.polygon([(64,3),(43,88),(47,104),(56,122),(72,122),(81,104),(85,88)],fill=(177,77,42,255));d.polygon([(64,6),(47,87),(51,101),(59,116),(69,116),(77,101),(81,87)],fill=(207,39,45,255))
-        d.polygon([(64,13),(52,84),(56,98),(64,109),(72,98),(76,84)],fill=(242,245,241,255));d.line((48,88,57,103,64,114,71,103,80,88),fill=(255,241,184,255),width=2);d.polygon([(64,27),(59,78),(64,90),(69,78)],fill=(231,230,208,255))
-        # Cockpit, crew, winches, mast step and bow fitting survive at 32 px.
-        d.ellipse((54,76,74,99),fill=(28,37,48,255));d.ellipse((58,80,70,93),fill=(78,174,209,255));d.ellipse((55,83,60,89),fill=(250,247,224,255));d.ellipse((68,83,73,89),fill=(250,247,224,255));d.ellipse((55,91,60,97),fill=(207,39,45,255));d.ellipse((68,91,73,97),fill=(207,39,45,255))
-        d.ellipse((52,69,58,75),fill=(121,143,153,255));d.ellipse((70,69,76,75),fill=(121,143,153,255));d.line((64,9,64,98),fill=(13,25,42,255),width=4);d.line((50,87,78,87),fill=(68,87,95,255),width=2)
-        d.line((55,34,50,82),fill=(121,143,153,255),width=2);d.line((73,34,78,82),fill=(121,143,153,255),width=2);d.ellipse((59,6,69,16),fill=(239,185,38,255));d.ellipse((61,8,67,14),fill=(255,241,184,255))
-        palette=PALETTE;planes=4
-    elif kind=='main':
-        if side==0:
-            d.polygon([(67,39),(67,104),(101,91),(94,58)],fill=(250,247,224,255));d.polygon([(72,51),(72,96),(94,88),(89,63)],fill=(255,255,255,255));d.line((69,69,94,72),fill=(185,205,210,255),width=4);d.line((69,86,98,88),fill=(185,205,210,255),width=4);d.line((67,39,67,104),fill=(185,205,210,255),width=3)
-        else:
-            d.polygon([(61,39),(61,104),(27,91),(34,58)],fill=(250,247,224,255));d.polygon([(56,51),(56,96),(34,88),(39,63)],fill=(255,255,255,255));d.line((59,69,34,72),fill=(185,205,210,255),width=4);d.line((59,86,30,88),fill=(185,205,210,255),width=4);d.line((61,39,61,104),fill=(185,205,210,255),width=3)
-        palette=SAIL_PALETTE;planes=2
-    elif kind=='jib':
-        if side==0:
-            d.polygon([(67,17),(67,61),(96,34),(84,24)],fill=(250,247,224,255));d.polygon([(72,27),(72,52),(89,36),(82,30)],fill=(255,255,255,255));d.line((69,39,90,35),fill=(185,205,210,255),width=4);d.line((67,17,67,61),fill=(185,205,210,255),width=3)
-        else:
-            d.polygon([(61,17),(61,61),(32,34),(44,24)],fill=(250,247,224,255));d.polygon([(56,27),(56,52),(39,36),(46,30)],fill=(255,255,255,255));d.line((59,39,38,35),fill=(185,205,210,255),width=4);d.line((61,17,61,61),fill=(185,205,210,255),width=3)
-        palette=SAIL_PALETTE;planes=2
-    else:
-        # Indices 1/2 are recoloured at runtime through the team palette.
-        if side==0:
-            d.ellipse((58,25,112,91),fill=(250,247,224,255));d.polygon([(64,26),(105,41),(100,82),(64,90)],fill=(185,205,210,255));d.polygon([(65,28),(84,33),(82,88),(65,90)],fill=(255,255,255,255));d.line((65,57,108,57),fill=(250,247,224,255),width=4);d.line((65,28,100,82),fill=(185,205,210,255),width=4)
-        else:
-            d.ellipse((16,25,70,91),fill=(250,247,224,255));d.polygon([(64,26),(23,41),(28,82),(64,90)],fill=(185,205,210,255));d.polygon([(63,28),(44,33),(46,88),(63,90)],fill=(255,255,255,255));d.line((63,57,20,57),fill=(250,247,224,255),width=4);d.line((63,28,28,82),fill=(185,205,210,255),width=4)
-        palette=SAIL_PALETTE;planes=2
-    turned=hi.rotate(-heading*360/16,resample=Image.Resampling.BICUBIC,center=(64,64));small=turned.resize((32,32),Image.Resampling.BOX)
-    pal=Image.new('P',(1,1));flat=sum((list(c) for c in palette),[]);pal.putpalette(flat+[0]*(768-len(flat)))
-    rgb=Image.new('RGB',(32,32),(0,0,0));rgb.paste(small.convert('RGB'),mask=small.getchannel('A'));out=rgb.quantize(palette=pal,dither=Image.Dither.NONE)
-    alpha=list(small.getchannel('A').get_flattened_data());pixels=list(out.get_flattened_data());out.putdata([0 if a<112 else p for p,a in zip(pixels,alpha)])
-    return out,planes
-def mark():
-    im=Image.new('P',(16,16),0);im.putpalette(sum((list(c) for c in PALETTE),[])+[0]*(768-48));d=ImageDraw.Draw(im)
-    d.ellipse((3,2,12,14),fill=10);d.rectangle((5,4,10,11),fill=5);d.line((3,14,12,14),fill=1);return im
 def cup():
     im=Image.new('P',(32,40),0);im.putpalette(sum((list(c) for c in PALETTE),[])+[0]*(768-48));d=ImageDraw.Draw(im)
     d.polygon([(8,5),(24,5),(21,22),(17,27),(17,33),(25,35),(25,38),(7,38),(7,35),(15,33),(15,27),(11,22)],fill=5)
@@ -148,23 +80,8 @@ def arr(name,data):
     for i in range(0,len(data),16): lines.append('  '+','.join(f'0x{x:02x}' for x in data[i:i+16])+',')
     return f'static const uint8_t {name}[{len(data)}]={{\n'+"\n".join(lines)+'\n};\n'
 
-hulls=[component(a,'hull')[0] for a in range(16)]
-mains=[component(a,'main',0)[0] for a in range(16)]
-jibs=[component(a,'jib',0)[0] for a in range(16)]
-spins=[component(a,'spin',0)[0] for a in range(16)]
-m=mark(); c=cup(); backgrounds=[authored_panorama(i) for i in range(5)]; GEN.mkdir(parents=True,exist_ok=True)
-runtime_backgrounds=[]
-for background in backgrounds:
-    runtime_backgrounds.append(background.resize((320,24),Image.Resampling.NEAREST))
-def compose_yacht(hull,*layers):
-    pixels=list(hull.get_flattened_data())
-    for layer,mapping in layers:
-        for i,value in enumerate(layer.get_flattened_data()):
-            if value: pixels[i]=mapping[value]
-    out=hull.copy();out.putdata(pixels);return out
-working_map={1:12,2:9,3:1};spin_map={1:10,2:15,3:1}
-jib_yachts=[compose_yacht(hulls[i],(mains[i],working_map),(jibs[i],working_map)) for i in range(16)]
-spin_yachts=[compose_yacht(hulls[i],(mains[i],working_map),(spins[i],spin_map)) for i in range(16)]
+c=cup(); backgrounds=[authored_panorama(i) for i in range(5)]; GEN.mkdir(parents=True,exist_ok=True)
+runtime_backgrounds=[background.resize((320,24),Image.Resampling.NEAREST) for background in backgrounds]
 def rle8(frames):
     data=[];offsets=[0]
     for image in frames:
@@ -178,41 +95,15 @@ def rle8(frames):
         offsets.append(len(data))
     return data,offsets
 background_rle,background_offsets=rle8(runtime_backgrounds)
-def paste_indexed(dst,b,pos):
-    art=b.convert('RGB').resize((64,64),Image.Resampling.NEAREST)
-    # Build the transparency mask from palette indices directly. Converting a
-    # mode-P point image through its colour palette can turn index 255 black
-    # and make otherwise valid sail layers disappear from preview sheets.
-    mask=b.point(lambda p:255 if p else 0,mode='L').resize((64,64),Image.Resampling.NEAREST)
-    dst.paste(art,pos,mask)
-hull_sheet=Image.new('RGB',(8*64,2*64),(3,65,145));composite=Image.new('RGB',(8*64,2*64),(3,65,145))
-for i,b in enumerate(hulls):
-    pos=((i%8)*64,(i//8)*64);paste_indexed(hull_sheet,b,pos);paste_indexed(composite,b,pos);paste_indexed(composite,mains[i],pos);paste_indexed(composite,jibs[i],pos)
-hull_sheet.save(GEN/'hull_sprite_sheet.png');composite.save(GEN/'boat_bitplane_sheet.png')
-for name,frames in [('main_sail',mains),('jib',jibs),('spinnaker',spins)]:
-    sh=Image.new('RGB',(8*64,4*64),(3,65,145))
-    for i,b in enumerate(frames):paste_indexed(sh,b,((i%8)*64,(i//8)*64))
-    sh.save(GEN/f'{name}_sprite_sheet.png')
-m.convert('RGB').resize((128,128),Image.Resampling.NEAREST).save(GEN/'mark.png');c.convert('RGB').resize((128,160),Image.Resampling.NEAREST).save(GEN/'cup.png')
+c.convert('RGB').resize((128,160),Image.Resampling.NEAREST).save(GEN/'cup.png')
 bay=Image.new('RGB',(320,48*5));
 for i,bg in enumerate(backgrounds): bay.paste(bg.convert('RGB'),(0,i*48))
 bay.save(GEN/'bay_of_naples_backgrounds.png')
 pal=', '.join(f'0x{rgb565(x):04x}' for x in PALETTE)
-boat_pal=', '.join(f'0x{rgb565(x):04x}' for x in BOAT_PALETTE)
-sail_pal=', '.join(f'0x{rgb565(x):04x}' for x in SAIL_PALETTE)
-text='#ifndef NACUP_ASSETS_BITPLANES_H\n#define NACUP_ASSETS_BITPLANES_H\n#include <stdint.h>\n'
-text+=f'static const uint16_t nacup_palette[16]={{{pal}}};\n'
-text+=f'static const uint16_t nacup_hull_palette[256]={{{boat_pal}}};\n'
-text+=f'static const uint16_t nacup_sail_palette[4]={{{sail_pal}}};\n'
-text+=f'static const uint16_t nacup_background_palette[16]={{{pal}}};\n'
-for i,(bright,dark) in enumerate(SPIN_COLORS):
-    sp=[(0,0,0),bright,dark,(255,255,255)]
-    text+=f'static const uint16_t nacup_spin_palette{i}[4]={{'+', '.join(f'0x{rgb565(x):04x}' for x in sp)+'};\n'
-team_colors=[((0,91,119),(0,210,230),(190,246,255)),((125,16,25),(240,38,48),(255,215,218)),((82,35,124),(181,85,232),(235,215,255)),((190,118,0),(255,205,20),(255,243,186))]
-for i,(dark,bright,sail) in enumerate(team_colors):
-    tp=PALETTE.copy();tp[15]=dark;tp[6]=bright;tp[10]=bright;tp[12]=sail
-    text+=f'static const uint16_t nacup_yacht_palette{i}[16]={{'+', '.join(f'0x{rgb565(x):04x}' for x in tp)+'};\n'
-text+=arr('nacup_jib_yacht_planes',planar(jib_yachts,32,32,4))+arr('nacup_spin_yacht_planes',planar(spin_yachts,32,32,4))+arr('nacup_mark_planes',planar([m],16,16))+arr('nacup_cup_planes',planar([c],32,40))+arr('nacup_background_rle8',background_rle)
-text+='static const uint16_t nacup_background_offsets[6]={'+','.join(str(x) for x in background_offsets)+'};\n#endif\n'
+text='#ifndef FAIRWIND_ASSETS_BITPLANES_H\n#define FAIRWIND_ASSETS_BITPLANES_H\n#include <stdint.h>\n'
+text+=f'static const uint16_t fairwind_palette[16]={{{pal}}};\n'
+text+=f'static const uint16_t fairwind_background_palette[16]={{{pal}}};\n'
+text+=arr('fairwind_cup_planes',planar([c],32,40))+arr('fairwind_background_rle8',background_rle)
+text+='static const uint16_t fairwind_background_offsets[6]={'+','.join(str(x) for x in background_offsets)+'};\n#endif\n'
 OUT.write_text(text)
 print(f'wrote {OUT} ({OUT.stat().st_size} bytes)')

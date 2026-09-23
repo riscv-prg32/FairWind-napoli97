@@ -1,5 +1,63 @@
 # Changelog
 
+## 4.0.0 — 2026-09-23 — FairWind: stern view and sailing physics
+
+### Renamed
+
+- Renamed the game and cartridge from `NaCup-napoli97` to `FairWind-napoli97`, with package id `org.riscv-prg32.fairwind-napoli97`.
+- Renamed the `fairwind_` entry points, asset symbols, build products, store bundle, title, information band, lobby and release artifacts.
+
+### Graphics engine
+
+- Replaced the top-down sprite view with a fixed-point perspective renderer: a stern chase camera, camera-space clipping, polygon and line rasterisation, and painter's ordering.
+- Procedural 12-Metre yachts: deep-red hull, team sheer, deck, mast and boom. The mainsail and jib follow the wind, the sheet trim and the heading: the boom swings to leeward, walks over in tacks, slams in gybes, and the sails flutter when luffing. The hull heels.
+- Added a spinnaker and a gennaker in each team's colour, with animated hoists and drops.
+- The race field (1.8 × 1.7 km) is larger than the view, with a course-up map at the top right. The map shows shore, marks, lines, fleet, wind and, from Strategy 2, laylines.
+- Added a horizon with the venue panorama dead downwind, coastal hills and an open SW horizon.
+- Added shore walls for Naples, Sorrento and Posillipo, a dithered sea, drifting ripples and wakes.
+- Added a wind instrument showing true and apparent wind, true wind speed, and the shift as a lift or header.
+- Automatic heading-up top view within 70 m of a mark or rival (100 m to return), with the three-length zone drawn at the next mark.
+- Race colours sit exactly on the ILI9341 6×6×6 palette cube.
+
+### Physics
+
+- Realistic speeds: ORC polar × sail plan (jib, spinnaker, gennaker) × trim efficiency × syndicate, reached through keelboat momentum. Typical speeds are about 7 kt close-hauled and 8–9 kt reaching in 12 kt of breeze.
+- Rudder-dependent turn rate and drag, a no-go zone in which the yacht coasts to a stop, and leeway drift.
+- Deterministic SW wind with oscillating and persistent shifts and pressure pulses, identical on every console.
+- Yachts cannot sail onto the shore or past the race-area limit.
+- Simulated time now runs at 20× before the two-minute box entry and 4× afterwards, instead of 20× throughout. The race time limit is 45 simulated minutes.
+
+### Controls
+
+- Left/Right helm to port/starboard.
+- Up eases and Down trims the sheets.
+- A toggles the spinnaker and B the gennaker; they are mutually exclusive, and changing kite drops one before hoisting the other.
+- A+B takes a penalty turn.
+
+### AI
+
+- Time-distance starts from the box, with speed metered by the sheets.
+- VMG beats and runs with layline, header and edge tacking.
+- Port roundings, crewed kite choice and timing.
+- Rule 10–12 give-way and Rule 14 contact avoidance.
+- Penalty turns taken in clear water.
+
+### Multiplayer and tooling
+
+- Multiplayer protocol v8 (`fairwind-napoli97:v8-*` rooms), carrying decimetre position, 9-bit heading, sheet, kite state and speed. The lobby is recognised by the absence of the racing flag.
+- Removed 16 KB of pre-rotated yacht sprite banks. Each store variant is now about 54 KB, down from 64.7 KB.
+- New host renderer (`tools/host_capture.py`, `make screenshots`) produces real-frame store screenshots and traceable autopiloted races.
+- New harness scenarios cover:
+  - polar speeds and momentum
+  - trim
+  - helm
+  - kites
+  - A+B penalty turns
+  - grounding
+  - view hysteresis
+  - wind shifts
+  - full AI races on every course
+
 ## 3.1.0 — 2026-09-22 — 64 KiB profile refresh
 
 - Migrated the cartridge and package guards to PRG32's 64 KiB limits.

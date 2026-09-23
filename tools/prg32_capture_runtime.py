@@ -251,7 +251,7 @@ def capture(name: str, duration: float, fps: int, warmup: float, ffmpeg: str,
                 thread.join(timeout=2)
         if verbose_console:
             sys.stderr.write(transcript[-50_000:].decode("utf-8", errors="replace"))
-            Path("/tmp/nacup-qemu-transcript.log").write_bytes(transcript)
+            Path("/tmp/fairwind-qemu-transcript.log").write_bytes(transcript)
 
         audio = temp / "audio.wav"
         expected = round(duration * RATE) * 2

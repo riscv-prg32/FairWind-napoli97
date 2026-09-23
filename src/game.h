@@ -1,6 +1,6 @@
-#ifndef NACUP_GAME_H
-#define NACUP_GAME_H
-void nacup_init(void);
-void nacup_update(void);
-void nacup_draw(void);
+#ifndef FAIRWIND_GAME_H
+#define FAIRWIND_GAME_H
+void fairwind_init(void);
+void fairwind_update(void);
+void fairwind_draw(void);
 #endif
