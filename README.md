@@ -1,6 +1,6 @@
 # FairWind-napoli97
 
-An original PRG32 sports-management cartridge set around the **fictional 12-Metre America's Cup held in Naples in 1997**.
+An original PRG32 sports-management cartridge set around the **fictional America's Cup held in Naples in 1997**.
 
 The player is both syndicate manager and helmsman. Between races, a compact team-HQ interface inspired by the decision rhythm of modern motorsport-management games handles sponsors, cash flow, technical development, crew, and strategy. On the water, the player helms and trims the yacht from a stern chase view against tactical AI rivals or up to three remote players through PRG32 multiplayer.
 
