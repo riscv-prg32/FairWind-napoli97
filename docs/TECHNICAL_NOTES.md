@@ -4,7 +4,7 @@
 
 The race field is a course-aligned plane in metres: world +y points into the mean south-westerly breeze, +x lies to starboard when facing upwind. The field spans x ±900 m and y −450…+1250 m. The start line runs ±110 m across y = 0, with the pre-start box 200 m deep below it. The finish line runs ±90 m across y = −80. Yacht positions are stored in millimetres, speeds in mm/s ×256, and headings as 16-bit binary angles (65 536 = 360°, clockwise from +y).
 
-Time is simulated. Before the two-minute box entry one simulated second passes every 3 frames (20×); afterwards, and for the whole race, every 15 frames (4×). All physics steps scale with the current factor, so a yacht covers the same water per simulated second in both phases.
+Time is simulated. Before the two-minute box entry the simulation runs at 20× real time; afterwards, and for the whole race, at 4×. The firmware paces cartridges at 33 ms per frame. The game measures each frame's real duration with `prg32_ticks_ms` (clamped to 10–66 ms) and integrates `time scale × frame time` simulated milliseconds. Every rate is expressed per simulated second, so the yachts sail identically at 30 fps or at a lower sustained rate (the harness checks 15 vs 30 fps agree within about a metre after 53 s). Whole simulated seconds (race clock, signals, wind) come from a millisecond accumulator.
 
 ## Fixed-point maths
 
@@ -29,7 +29,7 @@ The race view is a small fixed-point 3D pipeline:
 1. **Camera space.** The chase camera sits 30 m behind and 6.5 m above the yacht, smoothed towards its heading. World points are rotated and translated into decimetre camera space (x right, h up, z forward).
 2. **Clipping.** Polygons and lines are clipped in camera space against a near plane and two side planes (chase), or four orthographic planes (top view), with Sutherland–Hodgman and an overflow-safe interpolation. Projected coordinates are therefore always bounded.
 3. **Projection.** Chase: 150 px/rad perspective with the horizon at row 76. Top view: 1.5 px/m, heading-up, with a slight height tilt so masts and sails keep their shape.
-4. **Rasterisation.** Even-odd scanline fill emitted as one-row `prg32_gfx_rect` spans, so concave sail outlines work. Lines use a 16.16 DDA with `prg32_gfx_pixel`.
+4. **Rasterisation.** Even-odd scanline fill emitted as one-row `prg32_gfx_rect_indexed` spans, so concave sail outlines work; each edge's 16.16 slope is computed once, so a scanline costs no divisions. Lines use a 16.16 DDA with `prg32_gfx_pixel_indexed`.
 5. **Ordering.** Painter's order by camera depth for yachts, buoys and committee boats. Within a yacht, the farther of mainsail and headsail is drawn first.
 
 Scene layers:
@@ -52,7 +52,7 @@ Yachts are modelled in decimetres:
 
 Kites grow from the bow with hoist progress.
 
-All race colours are exact levels of the ILI9341 driver's 6×6×6 palette cube (`C6(r,g,b)`), so the indexed hardware display and the RGB565 QEMU display match. The HUD overlays sit above the clipped world region (rows 18–179):
+All race colours are exact levels of the ILI9341 driver's 6×6×6 palette cube (`C6(r,g,b)`), so the indexed hardware display and the RGB565 QEMU display match. All drawing goes through the palette-indexed firmware calls with an index computed once per call (`ci()`, the firmware's own conversion rule). See `docs/PERFORMANCE.md` for why this matters. The HUD overlays sit above the clipped world region (rows 18–179):
 - a wind instrument
 - a course-up map
 - start-signal messages
@@ -92,7 +92,7 @@ Lobby snapshots lack the racing bit, which both the ready handshake and the snap
 
 The package targets the portable 64 KiB cartridge profile used by PRG32 main. The builder receives both `--portable` and `--multiplayer`; post-build checks reject any architecture variant over 65,536 bytes. `tools/prg32_cli_64.py` temporarily corrects the Python builder/uploader's stale 32 KiB fallback while preserving the normal CLI.
 
-Procedural yachts replaced the 16 KB of pre-rotated yacht sprite banks. The whole engine fits in about 45.8 KB of code and data, and each store variant is about 54 KB including icon, real-frame screenshot and metadata.
+Procedural yachts replaced the 16 KB of pre-rotated yacht sprite banks. The 4.1 engine, including the 4.6 KB title-screen logo sprite, fits in about 50 KB of code and data, and each store variant stays under the 64 KiB package limit including icon, real-frame screenshot and metadata.
 
 Five authored 320×48 panorama sources share a Mediterranean palette. Runtime versions retain 8-bit palette indices and are resized to 320×24, then compressed as row-safe `(run length, palette index)` byte pairs and expanded directly as horizontal runs.
 

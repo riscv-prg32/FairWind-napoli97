@@ -80,7 +80,24 @@ def arr(name,data):
     for i in range(0,len(data),16): lines.append('  '+','.join(f'0x{x:02x}' for x in data[i:i+16])+',')
     return f'static const uint8_t {name}[{len(data)}]={{\n'+"\n".join(lines)+'\n};\n'
 
-c=cup(); backgrounds=[authored_panorama(i) for i in range(5)]; GEN.mkdir(parents=True,exist_ok=True)
+def cube_level(v): return min(5,(v*5+127)//255)
+def cube_rgb(l): return tuple(x*51 for x in l)
+def logo(size=96,colors=16):
+    """The FairWind logo quantised onto the display's 6x6x6 colour cube.
+
+    Keeping the most used cube colours means the ILI9341 palette lookup and the
+    QEMU RGB565 display show exactly the same pixels."""
+    from collections import Counter
+    src=Image.open(ROOT/'assets'/'source'/'fairwind-logo.png').convert('RGB').resize((size,size),Image.Resampling.LANCZOS)
+    levels=[tuple(cube_level(c) for c in p) for p in src.get_flattened_data()]
+    keep=[c for c,_ in Counter(levels).most_common(colors)]
+    near=lambda l:min(range(len(keep)),key=lambda i:sum((a-b)**2 for a,b in zip(l,keep[i])))
+    im=Image.new('P',(size,size));im.putpalette([v for l in keep for v in cube_rgb(l)]);im.putdata([near(l) for l in levels])
+    return im,keep
+def cube565(l):
+    # Round up so the firmware's rgb565 -> cube conversion returns level l.
+    return (((l[0]*31+4)//5)<<11)|(((l[1]*63+4)//5)<<5)|((l[2]*31+4)//5)
+c=cup(); logo_image,logo_levels=logo(); backgrounds=[authored_panorama(i) for i in range(5)]; GEN.mkdir(parents=True,exist_ok=True)
 runtime_backgrounds=[background.resize((320,24),Image.Resampling.NEAREST) for background in backgrounds]
 def rle8(frames):
     data=[];offsets=[0]
@@ -96,6 +113,7 @@ def rle8(frames):
     return data,offsets
 background_rle,background_offsets=rle8(runtime_backgrounds)
 c.convert('RGB').resize((128,160),Image.Resampling.NEAREST).save(GEN/'cup.png')
+logo_image.convert('RGB').resize((192,192),Image.Resampling.NEAREST).save(GEN/'logo_sprite.png')
 bay=Image.new('RGB',(320,48*5));
 for i,bg in enumerate(backgrounds): bay.paste(bg.convert('RGB'),(0,i*48))
 bay.save(GEN/'bay_of_naples_backgrounds.png')
@@ -103,7 +121,8 @@ pal=', '.join(f'0x{rgb565(x):04x}' for x in PALETTE)
 text='#ifndef FAIRWIND_ASSETS_BITPLANES_H\n#define FAIRWIND_ASSETS_BITPLANES_H\n#include <stdint.h>\n'
 text+=f'static const uint16_t fairwind_palette[16]={{{pal}}};\n'
 text+=f'static const uint16_t fairwind_background_palette[16]={{{pal}}};\n'
-text+=arr('fairwind_cup_planes',planar([c],32,40))+arr('fairwind_background_rle8',background_rle)
+text+='static const uint16_t fairwind_logo_palette[16]={'+', '.join(f'0x{cube565(l):04x}' for l in logo_levels)+'};\n'
+text+=arr('fairwind_logo_planes',planar([logo_image],96,96))+arr('fairwind_cup_planes',planar([c],32,40))+arr('fairwind_background_rle8',background_rle)
 text+='static const uint16_t fairwind_background_offsets[6]={'+','.join(str(x) for x in background_offsets)+'};\n#endif\n'
 OUT.write_text(text)
 print(f'wrote {OUT} ({OUT.stat().st_size} bytes)')

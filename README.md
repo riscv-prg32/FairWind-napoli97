@@ -1,8 +1,26 @@
 # FairWind-napoli97
 
+<img src="assets/source/fairwind-logo.png" alt="FairWind logo" width="160">
+
 An original PRG32 sports-management cartridge set around the **fictional 12-Metre America's Cup held in Naples in 1997**.
 
 The player is both syndicate manager and helmsman. Between races, a compact team-HQ interface inspired by the decision rhythm of modern motorsport-management games handles sponsors, cash flow, technical development, crew, and strategy. On the water, the player helms and trims the yacht from a stern chase view against tactical AI rivals or up to three remote players through PRG32 multiplayer.
+
+## Learn how it is built
+
+[`docs/tutorial/`](docs/tutorial/README.md) is a twelve-chapter, step-by-step tutorial that rebuilds the game for first-year Computer Science and Computer Engineering students taking a C programming course. It covers:
+- the game loop and state machines;
+- data design;
+- fixed-point arithmetic;
+- simulated time and the wind;
+- sailing physics;
+- racing rules and AI;
+- 3D graphics from scratch;
+- palettes, sprites and the HUD;
+- performance engineering on the ESP32-C6;
+- multiplayer and testing.
+
+Each chapter has objectives, worked code, self-check questions and graded exercises.
 
 ## Campaign
 
@@ -59,7 +77,7 @@ Spinnaker and gennaker are mutually exclusive: asking for one while the other is
 
 ## Starting procedure and simulated time
 
-Every race opens with a playable ten-minute pre-start. The first eight simulated minutes run at 20× (`>> x20` on screen); from the two-minute box entry onwards, and through the race, time runs at 4×, so boat speeds and turning look true to life. The committee boat and pin buoy define the line while the HUD counts simulated time. A short stereo horn accompanies the warning/class signal and the International Code P preparatory signal. At −2, the fleet must enter the displayed pre-start box through its assigned port or starboard gate. P is removed with a short horn at −1; the class flag is removed with a longer horn at the start.
+Every race opens with a playable ten-minute pre-start. The first eight simulated minutes run at 20× (`x20` on screen); from the two-minute box entry onwards, and through the race, time runs at 4×, so boat speeds and turning look true to life. The simulation integrates the measured frame time from the firmware clock, so speeds stay true at any sustained frame rate and every console in a room keeps the same race clock. The committee boat and pin buoy define the line while the HUD counts simulated time. A short stereo horn accompanies the warning/class signal and the International Code P preparatory signal. At −2, the fleet must enter the displayed pre-start box through its assigned port or starboard gate. P is removed with a short horn at −1; the class flag is removed with a longer horn at the start.
 
 The yachts begin on the course side and may not enter early. In multiplayer fleets, entry assignments alternate port and starboard. A valid start requires the yacht to have entered the box from its assigned side, be wholly on the pre-start side at or after zero, and then cross toward the course. An early yacht must return before making a valid crossing. The complete starting-line assembly is removed only after the last yacht crosses. The race clock then runs at 4×: a typical race takes 18–25 simulated minutes (about 5–6 minutes of play) within a 45-minute simulated limit.
 
@@ -120,6 +138,17 @@ The HUD identifies the infringement. Press A+B to take the penalty: the helm is 
 - Allocation-free update/draw loop suitable for the physical ESP32-C6 profile
 - Store metadata and ESP32-C6/QEMU variants
 
+## Performance on the ESP32-C6
+
+The race is designed around a measured budget for the physical console (see [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md)):
+
+- **Indexed drawing.** Every fill uses the palette-indexed firmware calls (a `memset` per row on the ILI9341 backend) instead of RGB565 fills, which convert colour per pixel.
+- **Less to transfer.** The race header is drawn once and the HUD refreshes at 7.5 Hz, so most frames push only rows 18–179 over the 32 MHz SPI bus. Idle menus draw nothing.
+- **Cheap text.** Race text uses the firmware's named colours on black, which the firmware converts cheaply.
+- **Measured in the firmware.** The profiling cartridge runs inside the real PRG32 firmware under QEMU with instruction counting.
+
+The cartridge's own work per frame is under 0.6 million instructions even at the worst frame. The estimated frame time is SPI-bound at about 30 fps, where version 4.0.0 would have run at roughly 4–7 fps.
+
 ## Build and test
 
 ```sh
@@ -141,13 +170,16 @@ The build passes both `--portable` and `--multiplayer`. It rejects either genera
 - wind-shift bounds and determinism
 - full AI races on all three courses
 
+`PRG32_ROOT=... python3 tools/profile/qemu_profile.py [SECONDS]` measures the per-frame instruction cost inside the real firmware under QEMU (`NULL_GFX=1` isolates the cartridge's own work and counts its draw calls). See `docs/PERFORMANCE.md`.
+
 `make screenshots` (needs a PRG32 checkout for its 8×8 font) runs `tools/host_capture.py`: real `game.c` frames rendered on the host through the 6×6×6 palette, with the player's yacht helmed by the AI autopilot. It refreshes the store screenshot and `release-artifacts/store-screenshots/`. `tools/host_capture.py OUTDIR [COURSE] [VENUE]` dumps a whole race; with `TRACE=1` it also logs every yacht's position, speed, leg, sheet and rudder.
 
 ## Store media
 
 - [Gameplay contact sheet](release-artifacts/FairWind-napoli97-gameplay.png)
 - [Store screenshot set](release-artifacts/store-screenshots/)
-- [60-second audiovisual preview](release-artifacts/FairWind-napoli97-preview-60s.mp4) (recorded with 3.x, before the stern-view engine)
+- [Preview video](release-artifacts/FairWind-napoli97-preview-60s.mp4): a 55-second montage of real game frames at 30 fps (`tools/host_capture.py --video`), with the game's own score captured in QEMU
+- [All five venues](release-artifacts/FairWind-napoli97-venues.png)
 
 Store screenshots are real frames from `tools/host_capture.py --store`.
 

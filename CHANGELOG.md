@@ -1,5 +1,45 @@
 # Changelog
 
+## 4.1.0 — 2026-09-26 — Fluid on the ESP32-C6, new logo, tutorial
+
+### Performance
+
+The cost of a race frame was measured inside the real firmware and brought within the ESP32-C6's budget: an estimated ~30 fps, SPI-bound, where 4.0.0 would have run at roughly 4–7 fps. See `docs/PERFORMANCE.md`.
+
+- All drawing goes through the palette-indexed firmware calls, a `memset` per row on the ILI9341, instead of RGB565 fills that convert colour per pixel at `-Og`.
+- The race no longer clears the whole screen every frame.
+- The header is drawn once per race and the HUD refreshes at 7.5 Hz, so most frames push only rows 18–179 over SPI.
+- Idle menus draw nothing.
+- Race text uses named colours on black, with shorter start-signal banners and fewer labels: from about 80 to 24 characters per frame, each about three times cheaper.
+- Polygon edges compute their slope once, so there are no divisions per scanline.
+- The simulation integrates the measured frame time (`prg32_ticks_ms`). The runtime paces frames at 33 ms, while 4.0.0 assumed 60 updates per second, so it would have run at half speed on hardware. Yachts now sail identically at any sustained frame rate, and consoles in a room agree.
+
+### Logo
+
+- New FairWind logo on the title screen: a 96×96, 16-colour bitplane sprite quantised onto the display's 6×6×6 colour cube.
+- The logo is also the Cartridge Store icon.
+
+### Tooling
+
+- New `tools/profile/qemu_profile.py` counts instructions per update and draw inside the PRG32 firmware under QEMU (`-icount`). `NULL_GFX=1` isolates the cartridge's own work and counts its draw requests, and a calibration step times the ILI9341 driver's `-Og` loops.
+- The autopilot is shared by the host renderer and the profiler (`tools/autopilot.h`).
+- New `tools/host_capture.py --video` renders a gameplay montage from real game frames at 30 fps.
+- The host renderer applies the firmware palette exactly.
+
+### Tests
+
+New harness scenarios:
+- frame-rate independence (15 vs 30 fps);
+- the ESP32-C6 draw budget (indexed only, static header, HUD one frame in four, text caps, idle menus);
+- beam-reach polars at 8, 12 and 16 knots;
+- Rules 10, 11, 12, 13, 14, 18 and 31;
+- early-finish rejection.
+
+### Documentation
+
+- New `docs/tutorial/`, a twelve-chapter step-by-step tutorial that rebuilds the game for first-year Computer Science and Computer Engineering students taking a C programming course.
+- New `docs/PERFORMANCE.md` and `docs/RELEASE_REPORT_4.1.0.md`.
+
 ## 4.0.0 — 2026-09-23 — FairWind: stern view and sailing physics
 
 ### Renamed

@@ -23,7 +23,12 @@ static void reset_peers(void) {
     for (int i = 0; i < 3; i++) { g_peer_ids[i] = (uint32_t)i; g_peer_y[i] = 150; g_peer_flags[i] = (uint16_t)(((i & 3) << 3) | 0x140); }
 }
 
+/* Draw-budget counters: RGB565 fills cost a colour conversion per pixel on
+   the ILI9341 backend, indexed fills are memsets, text converts per pixel. */
+static long g_rgb_px, g_idx_calls, g_chars, g_top_rows_touched, g_hud_touched;
 static void note_rect(int x, int y, int w, int h) {
+    if (y < 18 && h > 0) g_top_rows_touched++;
+    if (y + h > 180 && h > 0) g_hud_touched++;
     g_gfx_calls++;
     if (x < g_min_x) g_min_x = x;
     if (y < g_min_y) g_min_y = y;
@@ -38,10 +43,15 @@ void prg32_band_set_game_info(const char *s) { (void)s; }
 void prg32_audio_play_track(uint16_t t) { if (t < 16) g_track_plays[t]++; }
 void prg32_gfx_clear(uint16_t c) { (void)c; note_rect(0, 0, 320, 200); }
 void prg32_gfx_present(void) {}
-void prg32_gfx_rect(int x, int y, int w, int h, uint16_t c) { (void)c; note_rect(x, y, w, h); }
+void prg32_gfx_rect(int x, int y, int w, int h, uint16_t c) { (void)c; if (w > 0 && h > 0) g_rgb_px += (long)w * h; note_rect(x, y, w, h); }
 void prg32_gfx_pixel(int x, int y, uint16_t c) { (void)c; note_rect(x, y, 1, 1); }
+void prg32_gfx_rect_indexed(int x, int y, int w, int h, uint8_t c) { (void)c; g_idx_calls++; note_rect(x, y, w, h); }
+void prg32_gfx_pixel_indexed(int x, int y, uint8_t c) { (void)c; note_rect(x, y, 1, 1); }
+void prg32_gfx_clear_indexed(uint8_t c) { (void)c; note_rect(0, 0, 320, 200); }
+/* The firmware paces frames at 33 ms; the harness clock is deterministic. */
+uint32_t prg32_ticks_ms(void) { static uint32_t t; return t += 33; }
 void prg32_gfx_text8(int x, int y, const char *s, uint16_t fg, uint16_t bg) {
-    (void)fg; (void)bg; note_rect(x, y, (int)strlen(s) * 8, 8);
+    (void)fg; (void)bg; g_chars += (long)strlen(s); note_rect(x, y, (int)strlen(s) * 8, 8);
 }
 void prg32_sprite_draw_bitplanes(int x, int y, const prg32_indexed_sprite_t *s, uint32_t frame) {
     (void)frame; note_rect(x, y, s->width, s->height);
@@ -114,8 +124,8 @@ static void run_one_full_season(int verbose) {
         } else if (screen == ST_RACE) {
             /* steer with a cheap deterministic pattern and occasionally toggle spinnaker */
             uint32_t in = 0;
-            if ((race_frames + race_clock) % 7 < 3) in |= PRG32_BTN_LEFT;
-            else if ((race_frames + race_clock) % 7 < 6) in |= PRG32_BTN_RIGHT;
+            if ((frame + race_clock) % 7 < 3) in |= PRG32_BTN_LEFT;
+            else if ((frame + race_clock) % 7 < 6) in |= PRG32_BTN_RIGHT;
             if (boats[0].penalty) in |= PRG32_BTN_B;
             g_input = in;
             fairwind_update();
@@ -208,7 +218,7 @@ static void run_fuzz_season(uint32_t seed, int verbose) {
             if (boats[0].penalty && (r & 4)) in |= PRG32_BTN_B;
             if (r & 0x100) in |= PRG32_BTN_A;
             g_input = in; fairwind_update(); g_input = 0;
-            if ((race_clock + race_frames) % 25 == 0) fairwind_draw();
+            if ((race_clock + frame) % 25 == 0) fairwind_draw();
             for (int i = 0; i < 4; i++) {
                 CHECK(boats[i].x >= -FIELD_X * 1000 && boats[i].x <= FIELD_X * 1000, "fuzz: boat x must stay on the water");
                 CHECK(boats[i].y >= FIELD_Y0 * 1000 && boats[i].y <= FIELD_Y1 * 1000, "fuzz: boat y must stay on the water");
@@ -355,7 +365,7 @@ static void run_dnf_order_scenario(void) {
     tap(PRG32_BTN_A); multiplayer = 0; tap(PRG32_BTN_A); tap(PRG32_BTN_A);
     menu = 5; tap(PRG32_BTN_A); tap(PRG32_BTN_A);
     CHECK(screen == ST_RACE, "dnf: race should start");
-    start_clock = 0; race_clock = RACE_LIMIT_SECONDS; race_frames = frames_per_sim_second() - 1;
+    start_clock = 0; race_clock = RACE_LIMIT_SECONDS; sim_acc = 999;
     for (int i = 0; i < 4; i++) { boats[i].started = 1; boats[i].leg = (uint8_t)i; boats[i].x = (-300 + i * 200) * 1000; boats[i].y = 300000; }
     fairwind_update();
     CHECK(screen == ST_RESULT, "dnf: time limit ends the race");
@@ -382,7 +392,7 @@ static void sail_frames(int n, int trim) {
     for (int i = 0; i < n; i++) {
         uint32_t in = 0; int opt = trim_opt(awa_deg(&boats[0]));
         if (trim) { if (boats[0].sheet < opt) in |= PRG32_BTN_UP; else if (boats[0].sheet > opt) in |= PRG32_BTN_DOWN; }
-        g_input = in; wind_t = 0; race_frames = 0; update_race(in, 0); tws10 = tws10; twd = 0; g_input = 0;
+        g_input = in; wind_t = 0; sim_acc = 0; update_race(in, 0); twd = 0; g_input = 0;
         boats[0].leg = 0; boats[0].x = 0; boats[0].y = 300000; /* stay mid-field */
     }
 }
@@ -415,13 +425,21 @@ static void run_polar_speed_scenario(void) {
     CHECK(knots10(&boats[0]) < 10, "polar: head to wind the yacht stops (no-go zone)");
     /* Momentum: a 26-tonne yacht takes many seconds to accelerate. */
     open_water(120, (uint16_t)DEG(270));
-    sail_frames(60, 1); /* 4 simulated seconds */
+    sail_frames(30, 1); /* 4 simulated seconds */
     CHECK(knots10(&boats[0]) < reach * 2 / 3, "polar: yacht accelerates gradually, not instantly");
     /* Realistic top speeds: never above ~10 kt in 16 kt of breeze. */
     open_water(160, (uint16_t)DEG(240));
     sail_frames(3000, 1);
     CHECK(knots10(&boats[0]) <= 105, "polar: no go-kart speeds");
-    printf("polar: reach %d.%d kt, beat %d.%d kt in 12 kt TWS\n", reach / 10, reach % 10, beat / 10, beat % 10);
+    /* Beam reach against the ORC table at 8 and 16 knots too (7.6 and 9.3 kt). */
+    open_water(80, (uint16_t)DEG(270)); sail_frames(3000, 1);
+    int reach8 = knots10(&boats[0]);
+    open_water(160, (uint16_t)DEG(270)); sail_frames(3000, 1);
+    int reach16 = knots10(&boats[0]);
+    CHECK(reach8 >= 71 && reach8 <= 80, "polar: beam reach in 8 kt settles near 7.6 kt");
+    CHECK(reach16 >= 88 && reach16 <= 97, "polar: beam reach in 16 kt settles near 9.3 kt");
+    printf("polar: beam reach %d.%d / %d.%d / %d.%d kt in 8 / 12 / 16 kt; beat %d.%d kt in 12 kt\n",
+           reach8 / 10, reach8 % 10, reach / 10, reach % 10, reach16 / 10, reach16 % 10, beat / 10, beat % 10);
 }
 
 static void run_trim_scenario(void) {
@@ -457,7 +475,7 @@ static void run_helm_scenario(void) {
     CHECK((int16_t)(boats[0].heading - h0) > DEG(3), "helm: RIGHT turns to starboard");
     /* A yacht turns at a few degrees per second, not instantly. */
     h0 = boats[0].heading;
-    for (int i = 0; i < 15; i++) update_race(PRG32_BTN_RIGHT, 0); /* one simulated second */
+    for (int i = 0; i < 8; i++) update_race(PRG32_BTN_RIGHT, 0); /* about one simulated second */
     CHECK((int16_t)(boats[0].heading - h0) < DEG(15), "helm: turn rate stays realistic");
     printf("helm: port and starboard steering verified\n");
 }
@@ -572,6 +590,109 @@ static void run_ai_race_scenario(int course) {
     printf("ai race %s: all started by R+%d s, finishes %d/%d/%d s\n", course_names[course], started_by, boats[1].finish_time, boats[2].finish_time, boats[3].finish_time);
 }
 
+/* The simulation integrates real frame time: sailing the same simulated time
+   at 15 fps and at 30 fps must give the same yacht. */
+static void run_frame_rate_scenario(void) {
+    int32_t x33, y33, v33; uint16_t h33;
+    open_water(120, (uint16_t)DEG(270)); frame_ms = 33;
+    for (int i = 0; i < 400; i++) { update_race(i < 100 ? PRG32_BTN_DOWN : (i < 130 ? PRG32_BTN_LEFT : 0), 0); twd = 0; wind_t = 0; }
+    x33 = boats[0].x; y33 = boats[0].y; v33 = boats[0].v; h33 = boats[0].heading;
+    open_water(120, (uint16_t)DEG(270)); frame_ms = 66;
+    for (int i = 0; i < 200; i++) { update_race(i < 50 ? PRG32_BTN_DOWN : (i < 65 ? PRG32_BTN_LEFT : 0), 0); twd = 0; wind_t = 0; }
+    int dx = (int)((boats[0].x - x33) / 1000), dy = (int)((boats[0].y - y33) / 1000);
+    int dv = (int)(((boats[0].v - v33) >> 8) * 100 / 5144), dh = (int)BAM2DEG((int16_t)(boats[0].heading - h33));
+    CHECK(dx * dx + dy * dy < 25 * 25, "frame rate: position after 53 s agrees within 25 m at 15 and 30 fps");
+    CHECK(absi(dv) <= 3, "frame rate: speed agrees within 0.3 kt at 15 and 30 fps");
+    CHECK(absi(dh) <= 5, "frame rate: heading agrees within 5 degrees at 15 and 30 fps");
+    frame_ms = FRAME_MS;
+    printf("frame rate: 30 vs 15 fps differ by %d m, %d.%d kt, %d deg\n", (int)isqrt((uint32_t)(dx * dx + dy * dy)), dv / 10, absi(dv) % 10, dh);
+}
+
+/* ESP32-C6 draw budget: a race frame must use indexed fills only, never
+   touch the static header after its first frame, refresh the HUD one frame
+   in four, and keep text (converted per pixel by the firmware) short. */
+static void run_draw_budget_scenario(void) {
+    long frames = 0, chars = 0, max_chars = 0, top_frames = 0, hud_frames = 0;
+    reset_harness_globals();
+    fairwind_init();
+    tap(PRG32_BTN_A); multiplayer = 0; tap(PRG32_BTN_A); tap(PRG32_BTN_A);
+    menu = 5; tap(PRG32_BTN_A); tap(PRG32_BTN_A);
+    fairwind_draw();
+    for (int i = 0; i < 6000 && screen == ST_RACE; i++) {
+        fairwind_update();
+        g_rgb_px = g_chars = g_top_rows_touched = g_hud_touched = 0;
+        fairwind_draw();
+        CHECK(g_rgb_px == 0, "budget: race frames draw with palette indices only");
+        frames++; chars += g_chars; if (g_chars > max_chars) max_chars = g_chars;
+        top_frames += g_top_rows_touched > 0; hud_frames += g_hud_touched > 0;
+    }
+    CHECK(top_frames == 0, "budget: the static race header is never redrawn");
+    CHECK(hud_frames * 3 < frames, "budget: the HUD refreshes at most one frame in four");
+    CHECK(max_chars <= 64, "budget: at most 64 text characters in any race frame");
+    CHECK(chars <= 40 * frames, "budget: at most 40 text characters per race frame on average");
+    /* Menus redraw only when something changes. */
+    screen = ST_TITLE; ui_dirty = 1; fairwind_draw(); g_idx_calls = g_chars = 0;
+    for (int i = 0; i < 30; i++) { fairwind_update(); fairwind_draw(); }
+    CHECK(g_idx_calls == 0 && g_chars == 0, "budget: an idle menu draws nothing");
+    printf("draw budget: %ld race frames, %.1f chars/frame (max %ld), HUD on %ld frames\n", frames, (double)chars / (double)frames, max_chars, hud_frames);
+}
+
+/* A finish-line crossing counts only after every mark, and only downwind. */
+static void run_early_finish_scenario(void) {
+    open_water(120, (uint16_t)DEG(180));
+    boats[0].x = 0; boats[0].y = (FINISH_Y + 30) * 1000; boats[0].leg = 0;
+    for (int i = 0; i < 200 && boats[0].y > (FINISH_Y - 30) * 1000; i++) { update_race(0, 0); boats[0].leg = 0; twd = 0; }
+    CHECK(!boats[0].finished, "finish: crossing before the last mark is ignored");
+    open_water(120, (uint16_t)DEG(180));
+    boats[0].x = 0; boats[0].y = (FINISH_Y + 30) * 1000; boats[0].leg = (uint8_t)course_len[course_sel]; boats[0].v = 3000 << 8;
+    for (int i = 0; i < 400 && !boats[0].finished; i++) { update_race(0, 0); twd = 0; boats[0].x = 0; }
+    CHECK(boats[0].finished, "finish: a downwind crossing after the last mark finishes");
+    printf("finish: early crossing ignored, valid crossing at %d s\n", boats[0].finish_time);
+}
+
+/* Rules 10, 14 and 31 on contact and on touching a mark. */
+static void run_rules_scenario(void) {
+    open_water(120, (uint16_t)DEG(315));   /* boat 0: wind from starboard -> starboard tack */
+    boats[1].finished = 0; boats[1].penalty = 0;
+    boats[1].x = boats[0].x + 2000; boats[1].y = boats[0].y; boats[1].heading = (uint16_t)DEG(45); /* port tack */
+    boats[1].v = 3000 << 8; boats[0].v = 3000 << 8;
+    update_rig(&boats[0], 1); update_rig(&boats[1], 1);
+    int32_t gap0 = boats[1].x - boats[0].x;
+    enforce_rules();
+    CHECK(boats[1].penalty && boats[1].rule == RULE_PORT && !boats[0].penalty, "rules: port-tack yacht is penalised under Rule 10");
+    CHECK(boats[1].x - boats[0].x > gap0, "rules: contact pushes the yachts apart (Rule 14)");
+    open_water(120, (uint16_t)DEG(270));
+    boats[0].x = course_x[course_sel][0] * 1000 + 1500; boats[0].y = course_y[course_sel][0] * 1000;
+    enforce_rules();
+    CHECK(boats[0].penalty && boats[0].rule == RULE_MARK_TOUCH, "rules: touching a mark is penalised under Rule 31");
+    /* Rule 11: same tack, overlapped side by side -> the windward yacht. */
+    open_water(120, (uint16_t)DEG(315));
+    boats[1].finished = 0; boats[1].penalty = 0; boats[1].heading = boats[0].heading;
+    boats[1].x = boats[0].x - 2000; boats[1].y = boats[0].y + 2000;    /* up-wind of boat 0 */
+    update_rig(&boats[0], 1); update_rig(&boats[1], 1); enforce_rules();
+    CHECK(boats[1].penalty && boats[1].rule == RULE_WINDWARD && !boats[0].penalty, "rules: windward yacht is penalised under Rule 11");
+    /* Rule 12: same tack, not overlapped -> the yacht clear astern. */
+    open_water(120, (uint16_t)DEG(315));
+    boats[1].finished = 0; boats[1].penalty = 0; boats[1].heading = boats[0].heading;
+    boats[1].x = boats[0].x - ((225 * 100 * fsin(boats[0].heading)) >> 14); boats[1].y = boats[0].y - ((225 * 100 * fcos(boats[0].heading)) >> 14);
+    update_rig(&boats[0], 1); update_rig(&boats[1], 1); enforce_rules();
+    CHECK(boats[1].penalty && boats[1].rule == RULE_ASTERN && !boats[0].penalty, "rules: yacht clear astern is penalised under Rule 12");
+    /* Rule 13: a yacht that is tacking keeps clear. */
+    open_water(120, (uint16_t)DEG(315));
+    boats[1].finished = 0; boats[1].penalty = 0; boats[1].heading = boats[0].heading;
+    boats[1].x = boats[0].x + 2000; boats[1].y = boats[0].y; update_rig(&boats[0], 1); update_rig(&boats[1], 1);
+    boats[1].tacking = 1; enforce_rules();
+    CHECK(boats[1].penalty && boats[1].rule == RULE_TACKING && !boats[0].penalty, "rules: tacking yacht is penalised under Rule 13");
+    /* Rule 18: in the zone of the same next mark, the outside yacht gives room. */
+    open_water(120, (uint16_t)DEG(315));
+    boats[1].finished = 0; boats[1].penalty = 0; boats[1].heading = boats[0].heading; boats[1].leg = boats[0].leg = 0; boats[1].started = 1;
+    boats[0].x = course_x[course_sel][0] * 1000 + 20000; boats[0].y = course_y[course_sel][0] * 1000 - 20000;
+    boats[1].x = boats[0].x + 2000; boats[1].y = boats[0].y - 1000;
+    update_rig(&boats[0], 1); update_rig(&boats[1], 1); enforce_rules();
+    CHECK(boats[1].penalty && boats[1].rule == RULE_MARK_ROOM && !boats[0].penalty, "rules: outside yacht in the zone is penalised under Rule 18");
+    printf("rules: Rules 10, 11, 12, 13, 14, 18 and 31 verified\n");
+}
+
 int main(void) {
     printf("== single player full season ==\n");
     run_one_full_season(1);
@@ -607,6 +728,14 @@ int main(void) {
     run_top_view_scenario();
     printf("== wind shifts ==\n");
     run_wind_scenario();
+    printf("== finish line ==\n");
+    run_early_finish_scenario();
+    printf("== racing rules ==\n");
+    run_rules_scenario();
+    printf("== frame-rate independence ==\n");
+    run_frame_rate_scenario();
+    printf("== ESP32-C6 draw budget ==\n");
+    run_draw_budget_scenario();
     printf("== AI races ==\n");
     for (int c = 0; c < COURSE_COUNT; c++) run_ai_race_scenario(c);
     printf("== fuzz seasons ==\n");

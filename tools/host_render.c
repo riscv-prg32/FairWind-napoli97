@@ -20,11 +20,23 @@ static uint16_t quant(uint16_t c) {
 uint32_t prg32_input_read(void) { return g_input; }
 void prg32_band_set_game_info(const char *s) { (void)s; }
 void prg32_audio_play_track(uint16_t t) { (void)t; }
-void prg32_gfx_rect(int x, int y, int w, int h, uint16_t c) {
-    int i, j; c = quant(c);
+static void raw_rect(int x, int y, int w, int h, uint16_t c) {
+    int i, j;
     for (j = y; j < y + h; j++) if (j >= 0 && j < 200) for (i = x; i < x + w; i++) if (i >= 0 && i < 320) fb[j][i] = c;
 }
+void prg32_gfx_rect(int x, int y, int w, int h, uint16_t c) { raw_rect(x, y, w, h, quant(c)); }
 void prg32_gfx_pixel(int x, int y, uint16_t c) { prg32_gfx_rect(x, y, 1, 1, c); }
+/* Palette indices map back to RGB565 exactly as the firmware palette does. */
+static uint16_t pal(uint8_t i) {
+    static const uint16_t named[8] = {0x0000, 0xffff, 0xf800, 0x07e0, 0x001f, 0xffe0, 0x07ff, 0xf81f};
+    unsigned v = i - 16u;
+    if (i < 8) return named[i];
+    return (uint16_t)((((v / 36u) * 31u / 5u) << 11) | ((((v / 6u) % 6u) * 63u / 5u) << 5) | ((v % 6u) * 31u / 5u));
+}
+void prg32_gfx_rect_indexed(int x, int y, int w, int h, uint8_t i) { raw_rect(x, y, w, h, pal(i)); }
+void prg32_gfx_pixel_indexed(int x, int y, uint8_t i) { raw_rect(x, y, 1, 1, pal(i)); }
+void prg32_gfx_clear_indexed(uint8_t i) { raw_rect(0, 0, 320, 200, pal(i)); }
+uint32_t prg32_ticks_ms(void) { static uint32_t t; return t += 33; }
 void prg32_gfx_clear(uint16_t c) { prg32_gfx_rect(0, 0, 320, 200, c); }
 void prg32_gfx_present(void) {}
 void prg32_gfx_text8(int x, int y, const char *s, uint16_t fg, uint16_t bg) {
@@ -52,8 +64,12 @@ int prg32_multiplayer_get_peer_count(void) { return 0; }
 int prg32_multiplayer_get_peer(int i, prg32_player_state_t *p) { (void)i; (void)p; return -1; }
 
 static const char *outdir;
+static int video;
 static void shot(const char *name) {
     char path[512]; FILE *f; snprintf(path, sizeof path, "%s/%s.ppm", outdir, name);
+    /* Stills are taken at arbitrary frames; on the console the throttled HUD
+       would have refreshed within the last four frames, so refresh it now. */
+    if (!video) hud_force = 1;
     fairwind_draw(); f = fopen(path, "wb"); if (!f) { perror(path); exit(1); }
     fprintf(f, "P6\n320 200\n255\n");
     for (int y = 0; y < 200; y++) for (int x = 0; x < 320; x++) {
@@ -62,35 +78,38 @@ static void shot(const char *name) {
     }
     fclose(f); printf("%s\n", path);
 }
+/* Video mode (VIDEO=1): record highlight windows at the real 30 fps, each
+   triggered once, as numbered PPM frames v00000.ppm... */
+static int rec_left, vframes;
+static void vshot(void) { char name[32]; snprintf(name, sizeof name, "v%05d", vframes++); shot(name); }
+static void trigger(int *done, int cond, int frames) { if (video && !*done && cond && !rec_left) { *done = 1; rec_left = frames; } }
 static void tap(uint32_t b) { g_input = b; fairwind_update(); g_input = 0; fairwind_update(); }
-/* Autopilot: let helm_ai decide on a shadow copy, then press the buttons a
-   human would to follow it. */
-static uint32_t autopilot(void) {
-    static boat_t shadow; static uint32_t kite_hold; boat_t s = boats[0]; uint32_t in = 0;
-    s.ai_clock = shadow.ai_clock; s.ai_tack = shadow.ai_tack; s.ai_last_tack = shadow.ai_last_tack;
-    s.team = boats[0].team; s.rudder = 0; helm_ai(&s); shadow = s;
-    if (boats[0].penalty && !boats[0].serving) return PRG32_BTN_A | PRG32_BTN_B;
-    if (s.rudder <= -10) in |= PRG32_BTN_LEFT; else if (s.rudder >= 10) in |= PRG32_BTN_RIGHT;
-    if (s.sheet > boats[0].sheet + 1) in |= PRG32_BTN_UP; else if (s.sheet + 1 < boats[0].sheet) in |= PRG32_BTN_DOWN;
-    if (kite_hold) { kite_hold--; return in; }
-    if (s.kite_want != boats[0].kite_want) {
-        uint32_t k = (s.kite_want == KITE_SPIN || (s.kite_want == KITE_NONE && boats[0].kite_want == KITE_SPIN)) ? PRG32_BTN_A : PRG32_BTN_B;
-        g_input = in | k; fairwind_update(); kite_hold = 2;
-    }
-    return in;
-}
+#include "autopilot.h"
 int main(int argc, char **argv) {
     int course = argc > 2 ? atoi(argv[2]) : 0, venue = argc > 3 ? atoi(argv[3]) : 1, n = 0, last_top = 0, last_kite = 0, last_leg = 0, got_run = 0, got_top = 0, got_beat = 0;
     long f; char name[64];
     outdir = argc > 1 ? argv[1] : ".";
+    video = getenv("VIDEO") != 0;
     fairwind_init(); shot("01-title");
+    if (video) for (int i = 0; i < 75; i++) vshot();
     tap(PRG32_BTN_A); shot("02-mode");
     tap(PRG32_BTN_A); tap(PRG32_BTN_A); menu = 2; strategy = 3; shot("03-team-hq");
     menu = 5; tap(PRG32_BTN_A); race_no = venue; course_sel = course; shot("04-race-briefing");
     tap(PRG32_BTN_A);
     for (f = 0; screen == ST_RACE && f < 200000; f++) {
-        g_input = getenv("IDLE") ? 0 : autopilot(); fairwind_update(); g_input = 0;
+        g_input = getenv("IDLE") ? 0 : autopilot_input(); fairwind_update(); g_input = 0;
         if (screen != ST_RACE) break;
+        if (video) {
+            static int t1, t2, t3, t4, t5, t6;
+            trigger(&t1, f == 40, 240);
+            trigger(&t2, start_clock == 8, 270);
+            trigger(&t3, race_clock == 150, 240);
+            trigger(&t4, top_view_mode && boats[0].leg >= 1, 240);
+            trigger(&t5, boats[0].kite_want == KITE_SPIN, 360);
+            trigger(&t6, boats[0].leg >= course_len[course_sel] && boats[0].y < (FINISH_Y + 45) * 1000, 150);
+            if (rec_left) { rec_left--; vshot(); }
+            continue;
+        }
         if (getenv("TRACE") && f % 150 == 0) {
             printf("f=%ld T-%d R%d twd=%d tws=%d |", f, start_clock, race_clock, (int)BAM2DEG((int16_t)twd), tws10);
             for (int i = 0; i < 4; i++) printf(" [%d] %d,%d h%d v%d L%d e%d r%d s%d sh%d ru%d k%d%s", i, boats[i].x / 1000, boats[i].y / 1000, (int)BAM2DEG(boats[i].heading), (int)((boats[i].v >> 8) * 100 / 5144), boats[i].leg, boats[i].entered_box, boats[i].start_ready, boats[i].started, boats[i].sheet, boats[i].rudder, boats[i].kite, boats[i].penalty ? "P" : "");
@@ -99,11 +118,11 @@ int main(int argc, char **argv) {
         if (f == 30) shot("05-prestart");
         /* Store frames: first fully set kite in the chase view, first top
            view at a mark, and a beat with rivals ahead. */
-        if (!got_run && boats[0].kite && boats[0].kite_prog == 65535 && !top_view_mode && boats[0].heel == 0 && race_clock % 20 == 0 && race_frames == 0) { shot("store-run"); got_run = 1; }
+        if (!got_run && boats[0].kite && boats[0].kite_prog == 65535 && !top_view_mode && boats[0].heel == 0 && race_clock % 20 == 0 && sim_acc < sim_ms()) { shot("store-run"); got_run = 1; }
         if (!got_top && top_view_mode && boats[0].started && boats[0].leg > 0) { got_top = 1; shot("store-top"); }
-        if (!got_beat && boats[0].started && !top_view_mode && race_clock >= 150 && race_frames == 0) { got_beat = 1; shot("store-beat"); }
-        if (start_clock == 90 && race_frames == 0) shot("06-entering-box");
-        if (start_clock == 0 && race_frames == 0 && race_clock == 0) shot("07-start");
+        if (!got_beat && boats[0].started && !top_view_mode && race_clock >= 150 && sim_acc < sim_ms()) { got_beat = 1; shot("store-beat"); }
+        if (start_clock == 90 && sim_acc < sim_ms()) shot("06-entering-box");
+        if (start_clock == 0 && sim_acc < sim_ms() && race_clock == 0) shot("07-start");
         if (top_view_mode != last_top && n < 60) { snprintf(name, sizeof name, "t%03d-top%d-leg%d", n++, top_view_mode, boats[0].leg); shot(name); }
         if (boats[0].kite_prog == 65535 && boats[0].kite != last_kite && n < 60) { snprintf(name, sizeof name, "k%03d-kite%d", n++, boats[0].kite); shot(name); }
         if (boats[0].leg != last_leg && n < 60) { snprintf(name, sizeof name, "m%03d-leg%d", n++, boats[0].leg); shot(name); }
@@ -113,5 +132,6 @@ int main(int argc, char **argv) {
     printf("race ended after %ld frames: clock=%d rank=%d finish=%d/%d/%d/%d legs=%d/%d/%d/%d\n", f, race_clock, player_rank,
            boats[0].finish_time, boats[1].finish_time, boats[2].finish_time, boats[3].finish_time, boats[0].leg, boats[1].leg, boats[2].leg, boats[3].leg);
     shot("99-result");
+    if (video) for (int i = 0; i < 75; i++) vshot();
     return 0;
 }

@@ -8,7 +8,8 @@
 - Run two-, three-, and four-board races through the PRG32 MultiplayerServer.
 - Verify every Bay of Naples skyline on physical ILI9341 hardware.
 - Inspect the procedural hull, mainsail, jib, spinnaker and gennaker in all four team colours on hardware, in the stern and top views.
-- Measure the race frame rate on ESP32-C6 hardware in the stern view with the full fleet and panorama in view.
+- Run `NULL_GFX=1 tools/profile/qemu_profile.py` and update `docs/PERFORMANCE.md` if the cartridge's per-frame instruction count changed.
+- Measure the race frame rate on ESP32-C6 hardware with the metrics firmware (`docs/PERFORMANCE.md` §6) in the stern view with the full fleet and panorama in view; expect ~28–30 fps.
 - Verify polar targets at 8, 12, and 16 knots TWS.
 - Verify the 10/5–4–2–1–start signals, the 20× to 4× time change at −2, port/starboard box entry, an early-return start, and line removal after the fourth crossing.
 - Verify Up/Down sheet trim (LUFF/GOOD/STALL), A spinnaker, B gennaker (mutually exclusive, timed hoists) and A+B penalty turns.
@@ -19,6 +20,8 @@
 - Trigger and serve Rules 10, 11, 12, 13, 18, and 31 penalties; verify contact separation under Rule 14.
 - Confirm the main and jib sit on the same leeward side at every heading, swing across in tacks and gybes, and stay legible over all five panoramas.
 - Confirm the SW course-up map, constrained wind shifts, and that each venue's panorama appears dead downwind.
-- Re-record the 60-second preview video with the stern-view engine.
+- Re-record the preview video (`tools/host_capture.py --video`, soundtrack captured from QEMU).
+- Check the FairWind logo on the title screen and as the store icon.
+- Check that `docs/tutorial/` still matches the code it quotes.
 - Confirm title, information band, icon, lobby, metadata, multiplayer rooms, and binaries all use `FairWind-napoli97`/`fairwind` consistently.
 - Publish `dist/FairWind-napoli97-<version>-store.zip` and checksums.
