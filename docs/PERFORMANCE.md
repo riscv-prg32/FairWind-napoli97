@@ -133,7 +133,7 @@ The behavioural harness (`tests/harness/run_harness.c`) enforces the design on e
 
 | Scenario | Checks |
 |---|---|
-| `run_draw_budget_scenario` | No RGB565 fill in any race frame; the header is never redrawn; the HUD refreshes on at most one frame in four; at most 64 text characters in any frame and 40 on average; an idle menu draws nothing. |
+| `run_draw_budget_scenario` | No RGB565 fill in any race frame; the header is never redrawn; the HUD refreshes on at most one frame in four; at most 96 text characters in any frame and 56 on average; an idle menu draws nothing. |
 | `run_frame_rate_scenario` | 15 and 30 fps produce the same yacht. |
 
 `tests/source_checks.py` also rejects any `prg32_gfx_rect(` or `prg32_gfx_pixel(` call in `src/game.c`.
@@ -144,3 +144,7 @@ The behavioural harness (`tests/harness/run_harness.c`) enforces the design on e
    `idf.py -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.metrics" build`
 2. Install `dist/store/FairWind-napoli97-esp32c6.prg32`, start a race, and read `update_us`, `draw_us`, `present_us` and `fps_mean` from the metrics server. The PRG32 performance-test guide explains the fields.
 3. Expect `present_us` ≈ 27–31 ms, `update_us + draw_us` of a few milliseconds, and `fps_mean` ≈ 28–30 in the stern view.
+
+## 6. Navy race panels (after 4.1.0)
+
+The race instruments, HUD and start banners went back to the 4.0.0 look: navy panels, orange and grey labels, the full start-sequence banners and the `TOP VIEW` label. Navy is not a named colour, so each of these characters costs about 7,000 instructions instead of about 2,400. The harness's worst case, a pre-start the player never leaves, averages 46 characters per race frame (maximum 81) instead of 24 (maximum 61). That adds about 0.25 M instructions, roughly 1.7–2.4 ms, per frame. The frame stays SPI-bound at about 26.7 ms of transfer, so the estimate is 27–30 fps in the pre-start and about 30 fps racing. Confirm on hardware with the frame metrics.

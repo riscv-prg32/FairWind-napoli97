@@ -25,7 +25,7 @@ static void reset_peers(void) {
 
 /* Draw-budget counters: RGB565 fills cost a colour conversion per pixel on
    the ILI9341 backend, indexed fills are memsets, text converts per pixel. */
-static long g_rgb_px, g_idx_calls, g_chars, g_top_rows_touched, g_hud_touched;
+static long g_palette_sets, g_rgb_px, g_idx_calls, g_chars, g_top_rows_touched, g_hud_touched;
 static void note_rect(int x, int y, int w, int h) {
     if (y < 18 && h > 0) g_top_rows_touched++;
     if (y + h > 180 && h > 0) g_hud_touched++;
@@ -48,6 +48,7 @@ void prg32_gfx_pixel(int x, int y, uint16_t c) { (void)c; note_rect(x, y, 1, 1);
 void prg32_gfx_rect_indexed(int x, int y, int w, int h, uint8_t c) { (void)c; g_idx_calls++; note_rect(x, y, w, h); }
 void prg32_gfx_pixel_indexed(int x, int y, uint8_t c) { (void)c; note_rect(x, y, 1, 1); }
 void prg32_gfx_clear_indexed(uint8_t c) { (void)c; note_rect(0, 0, 320, 200); }
+void prg32_palette_set(uint8_t i, uint16_t c) { (void)i; (void)c; g_palette_sets++; }
 /* The firmware paces frames at 33 ms; the harness clock is deterministic. */
 uint32_t prg32_ticks_ms(void) { static uint32_t t; return t += 33; }
 void prg32_gfx_text8(int x, int y, const char *s, uint16_t fg, uint16_t bg) {
@@ -101,6 +102,8 @@ static int failures = 0;
 static void run_one_full_season(int verbose) {
     reset_harness_globals();
     fairwind_init();
+    CHECK(g_palette_sets == 256, "init should load all 256 palette entries");
+    CHECK(ci(SEA) != ci(NAVY) && ci(SKY) != ci(SEA), "UI colours should resolve to distinct cube entries");
     CHECK(screen == ST_TITLE, "should start at title screen");
     tap(PRG32_BTN_A); /* -> MODE */
     CHECK(screen == ST_MODE, "A at title should reach mode select");
@@ -628,8 +631,8 @@ static void run_draw_budget_scenario(void) {
     }
     CHECK(top_frames == 0, "budget: the static race header is never redrawn");
     CHECK(hud_frames * 3 < frames, "budget: the HUD refreshes at most one frame in four");
-    CHECK(max_chars <= 64, "budget: at most 64 text characters in any race frame");
-    CHECK(chars <= 40 * frames, "budget: at most 40 text characters per race frame on average");
+    CHECK(max_chars <= 96, "budget: at most 96 text characters in any race frame");
+    CHECK(chars <= 56 * frames, "budget: at most 56 text characters per race frame on average");
     /* Menus redraw only when something changes. */
     screen = ST_TITLE; ui_dirty = 1; fairwind_draw(); g_idx_calls = g_chars = 0;
     for (int i = 0; i < 30; i++) { fairwind_update(); fairwind_draw(); }

@@ -40,14 +40,14 @@ assert 'me->kite_want==KITE_SPIN?KITE_NONE:KITE_SPIN' in s and 'me->kite_want==K
 assert '(PRG32_BTN_A|PRG32_BTN_B))==(PRG32_BTN_A|PRG32_BTN_B)' in s and 'begin_penalty_turn(me)' in s
 assert 'b->kite_prog' in s and 'b->kite=b->kite_want' in s
 # Close-quarters top view with hysteresis.
-assert 'TOP_VIEW_ENTER 70' in s and 'TOP_VIEW_EXIT 100' in s and 'close_to_rival_or_buoy(top_view_mode?TOP_VIEW_EXIT:TOP_VIEW_ENTER)' in s and '"TOP"' in s
+assert 'TOP_VIEW_ENTER 70' in s and 'TOP_VIEW_EXIT 100' in s and 'close_to_rival_or_buoy(top_view_mode?TOP_VIEW_EXIT:TOP_VIEW_ENTER)' in s and '"TOP VIEW"' in s
 # AI: timed start, VMG beats/runs with shift and layline tacking, rules, kites.
 assert 'static void helm_ai(boat_t *b)' in s and 'static uint16_t vmg_heading(' in s and 'layline_cos[4]' in s
 assert 'static uint16_t avoid_traffic(' in s and 'static int gives_way(' in s and 'kite_for(' in s and 'clear_water(b,45)' in s
 # Campaign, courses, start and finish.
 assert 'NAPOLI 1997' in s and 'RACES 5' in s and 'sponsors[4]' in s and 'money+=' in s and 'wins++' in s
 assert 'START_COUNTDOWN_SECONDS 600' in s and 'FAST_TIME_SCALE 20' in s and 'RACE_TIME_SCALE 4' in s
-assert '"WARNING"' in s and '"CLASS FLAG"' in s and '"P FLAG UP"' in s and '"ENTER BOX"' in s and '"P FLAG DOWN"' in s and 'msg="START"' in s
+assert '"10 MIN - WARNING"' in s and '"5 MIN - CLASS SIGNAL"' in s and '"4 MIN - P FLAG UP"' in s and '"2 MIN - ENTER THE BOX"' in s and '"1 MIN - P FLAG DOWN"' in s and 'msg="START - CLASS FLAG DOWN"' in s
 assert 'entered_box' in s and 'BOX_HALF' in s and 'if(all_started)start_line_active=0' in s
 assert 'course_names[COURSE_COUNT]' in s and 'course_len[COURSE_COUNT]={3,5,6}' in s
 assert 'WINDWARD / RUN' in s and 'OLYMPIC TRIANGLE' in s and '1992 IACC Z' in s
@@ -63,6 +63,9 @@ assert 'local_ready' in s and 'peer.flags&0x140' in s and 'if(!(p.flags&0x100))c
 # static header, a throttled HUD and menus that redraw only on change.
 assert 'prg32_gfx_rect_indexed' in s and 'prg32_gfx_pixel_indexed' in s and 'prg32_gfx_clear_indexed' in s
 assert 'prg32_gfx_rect(' not in s and 'prg32_gfx_pixel(' not in s
+# The cartridge owns the palette: identical colours on every runtime and run.
+assert 'static void set_palette(void)' in s and 'set_palette();' in s and 'bg_idx[i]=(uint8_t)(BG_BASE+i)' in s
+assert '0x0452' not in s and '#define SEA C6(' in s
 assert 'now=prg32_ticks_ms()' in s and 'static int32_t sim_ms(void)' in s and '#define FRAME_MS 33' in s
 assert 'if(!race_header)' in s and 'if(!(frame&3)||hud_force)' in s and 'if(!ui_dirty&&' in s
 assert 'es[m]=' in s  # one division per polygon edge
@@ -82,7 +85,7 @@ assert voices==set(range(8)),voices
 meta=json.loads((r/'metadata/metadata.json').read_text())
 assert meta['players']=={'min':1,'max':4}
 assert meta['name']=='FairWind-napoli97' and meta['id']=='org.riscv-prg32.fairwind-napoli97'
-assert meta['version']=='4.1.0' and 'selectable-courses' in meta['features'] and 'stern-chase-view' in meta['features']
+assert meta['version']=='4.2.0' and 'selectable-courses' in meta['features'] and 'stern-chase-view' in meta['features']
 assert 'basic-rrs-rules' in meta['features'] and 'wind-shifts' in meta['features']
 assert meta['cartridge_profile']=='portable-64k'
 print('source checks: OK; stern-view engine, sailing physics, wind shifts, AI, rules, courses, audio, and multiplayer verified')

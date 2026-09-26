@@ -52,7 +52,7 @@ Yachts are modelled in decimetres:
 
 Kites grow from the bow with hoist progress.
 
-All race colours are exact levels of the ILI9341 driver's 6×6×6 palette cube (`C6(r,g,b)`), so the indexed hardware display and the RGB565 QEMU display match. All drawing goes through the palette-indexed firmware calls with an index computed once per call (`ci()`, the firmware's own conversion rule). See `docs/PERFORMANCE.md` for why this matters. The HUD overlays sit above the clipped world region (rows 18–179):
+The cartridge loads all 256 palette entries at start-up (`set_palette()`): the named colours, the 6×6×6 cube at the `C6(r,g,b)` levels, the 16 panorama colours exactly at 232–247 and a grey ramp. Every UI and race colour is a `C6` level or a named colour, so the ILI9341 panel, QEMU and the PRG32 emulators resolve it to the same entry, and no palette left by another cartridge or a runtime's own default can change the colours. All drawing goes through the palette-indexed firmware calls with an index computed once per call (`ci()`, the firmware's own conversion rule). See `docs/PERFORMANCE.md` for why this matters. The HUD overlays sit above the clipped world region (rows 18–179):
 - a wind instrument
 - a course-up map
 - start-signal messages

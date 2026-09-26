@@ -8,18 +8,20 @@
 #define H 200
 #define BLACK 0x0000
 #define WHITE 0xffff
-#define SEA 0x0452
-#define SKY 0x65df
-#define NAVY 0x0010
-#define GOLD 0xfda0
 #define RED 0xf800
 #define GREEN 0x07e0
 #define CYAN 0x07ff
-#define GREY 0x8410
-#define LAND 0x39e7
-/* Race-view colours sit exactly on the display's 6x6x6 colour cube, so the
-   indexed ILI9341 panel shows the same shades as the RGB565 QEMU display. */
+/* Every colour sits exactly on the 6x6x6 cube the cartridge loads into the
+   palette at start-up (set_palette), so the ILI9341 panel, QEMU and the
+   PRG32 emulators all resolve a colour to the same entry and text
+   backgrounds match the fills around them. */
 #define C6(r,g,b) ((uint16_t)((((r)*31+4)/5)<<11|(((g)*63+4)/5)<<5|(((b)*31+4)/5)))
+#define SEA C6(0,2,3)
+#define SKY C6(1,3,5)
+#define NAVY C6(0,0,2)
+#define GOLD C6(5,3,0)
+#define GREY C6(2,2,2)
+#define LAND C6(1,1,1)
 #define SKY1 C6(1,3,5)
 #define SKY2 C6(2,4,5)
 #define SKY3 C6(3,4,5)
@@ -38,12 +40,11 @@
 #define BUOY C6(5,3,0)
 #define SAND C6(5,4,3)
 #define LAND_GROUND C6(2,3,1)
-/* Race text sits on black and uses the firmware's named colours: the ILI9341
-   backend converts every text pixel, and only named colours skip its three
-   divisions (measured: 2,378 instructions per white-on-black character
-   against 7,053 on navy). */
-#define PANEL BLACK
-#define YELLOW 0xffe0
+/* Race instruments and HUD sit on navy panels. The ILI9341 backend converts
+   every text pixel and only named colours skip its three divisions, so a
+   navy-backed character costs about 7,000 instructions against 2,400 on
+   black: roughly 1 ms per HUD refresh, well inside the SPI-bound frame. */
+#define PANEL NAVY
 #define RACES 5
 #define START_COUNTDOWN_SECONDS 600
 #define RACE_LIMIT_SECONDS 2700
@@ -118,9 +119,16 @@ static uint32_t last_input,frame,rng=0x97ca1997u,wind_seed;static int team_sel,m
 /* PRG32's ILI9341 backend fills palette-indexed spans with memset but
    converts RGB565 colours pixel by pixel, so every fill goes through the
    palette index the firmware would pick for that colour. */
+#define BG_BASE 232
+/* The palette is runtime state: the emulators start from a 3-3-2 palette and
+   every runtime keeps whatever the previous cartridge loaded. Load all 256
+   entries so colours are identical on every device and every run: the eight
+   named colours, the firmware's system colours, the 6x6x6 cube that ci()
+   indexes, the panoramas' own 16 colours exactly, and a grey ramp. */
+static void set_palette(void){static const uint16_t sys[16]={0x0000,0xffff,0xf800,0x07e0,0x001f,0xffe0,0x07ff,0xf81f,0x8410,0xc618,0x8000,0x0400,0x0010,0x8400,0x0410,0x8010};unsigned i;for(i=0;i<16;i++)prg32_palette_set((uint8_t)i,sys[i]);for(i=0;i<216;i++)prg32_palette_set((uint8_t)(16u+i),C6(i/36u,i/6u%6u,i%6u));for(i=0;i<16;i++)prg32_palette_set((uint8_t)(BG_BASE+i),fairwind_background_palette[i]);for(i=0;i<8;i++){unsigned v=i*31u/7u;prg32_palette_set((uint8_t)(BG_BASE+16u+i),(uint16_t)(v<<11|(v*2u+(v>>4))<<5|v));}}
 static uint8_t ci(uint16_t c){static const uint16_t named[8]={0x0000,0xffff,0xf800,0x07e0,0x001f,0xffe0,0x07ff,0xf81f};uint8_t i;for(i=0;i<8;i++)if(c==named[i])return i;return (uint8_t)(16u+((c>>11)&31u)*5u/31u*36u+((c>>5)&63u)*5u/63u*6u+(c&31u)*5u/31u);}
 static void fill(int x,int y,int w,int h,uint16_t c){prg32_gfx_rect_indexed(x,y,w,h,ci(c));}
-static uint32_t rnd(void){rng^=rng<<13;rng^=rng>>17;rng^=rng<<5;return rng;}static int absi(int n){return n<0?-n:n;}static int slen(const char *t){int n=0;while(t[n])n++;return n;}static int clamp(int n,int lo,int hi){return n<lo?lo:n>hi?hi:n;}
+static uint32_t rnd(void){rng^=rng<<13;rng^=rng>>17;rng^=rng<<5;return rng;}static int absi(int n){return n<0?-n:n;}static int clamp(int n,int lo,int hi){return n<lo?lo:n>hi?hi:n;}
 static void number(int x,int y,int n,uint16_t fg,uint16_t bg){char b[8];int i=6;b[7]=0;if(n<0)n=0;do{b[i--]=(char)('0'+n%10);n/=10;}while(n&&i>=0);while(i>=0)b[i--]=' ';prg32_gfx_text8(x,y,b,fg,bg);}static void digit(int x,int y,int n,uint16_t fg,uint16_t bg){char b[2];b[0]=(char)('0'+clamp(n,0,9));b[1]=0;prg32_gfx_text8(x,y,b,fg,bg);}static void clock_mmss(int x,int y,int n,uint16_t fg,uint16_t bg){char b[6];int m;if(n<0)n=0;m=clamp(n/60,0,99);b[0]=(char)('0'+m/10);b[1]=(char)('0'+m%10);b[2]=':';b[3]=(char)('0'+(n%60)/10);b[4]=(char)('0'+n%10);b[5]=0;prg32_gfx_text8(x,y,b,fg,bg);}static void box(int x,int y,int w,int h,uint16_t e,uint16_t f){fill(x,y,w,h,e);fill(x+2,y+2,w-4,h-4,f);}
 /* Left-aligned integer, optionally with one decimal (n in tenths). */
 static void small_num(int x,int y,int n,int tenths,uint16_t fg,uint16_t bg){char b[8];int i=0,d=1;if(n<0)n=0;if(n>9999)n=9999;while(n/d>=10)d*=10;if(tenths&&d<10)d=10;for(;d;d/=10){if(tenths&&d==1)b[i++]='.';b[i++]=(char)('0'+n/d%10);}b[i]=0;prg32_gfx_text8(x,y,b,fg,bg);}
@@ -434,14 +442,14 @@ static void update_race(uint32_t in,uint32_t released){
     if(race_clock>RACE_LIMIT_SECONDS)for(i=0;i<4;i++)if(!boats[i].finished){boats[i].finished=1;boats[i].finish_time=(uint16_t)(race_clock+600+(COURSE_MARKS_MAX+1-(boats[i].started?boats[i].leg+1:0))*30);}
     if((done&&start_clock==0)||race_clock>RACE_LIMIT_SECONDS){score_race();screen=ST_RESULT;menu=0;prg32_audio_play_track(2);}
 }
-void fairwind_init(void){int i;for(i=0;i<16;i++)bg_idx[i]=ci(fairwind_background_palette[i]);prg32_gfx_clear(SEA);setup_sprites();prg32_band_set_game_info("FairWind-napoli97 | portable 64 KiB | multiplayer");prg32_audio_play_track(0);screen=ST_TITLE;}
+void fairwind_init(void){int i;set_palette();for(i=0;i<16;i++)bg_idx[i]=(uint8_t)(BG_BASE+i);prg32_gfx_clear_indexed(ci(SEA));setup_sprites();prg32_band_set_game_info("FairWind-napoli97 | portable 64 KiB | multiplayer");prg32_audio_play_track(0);screen=ST_TITLE;}
 void fairwind_update(void){uint32_t in=prg32_input_read(),p=in&~last_input,r=last_input&~in,now=prg32_ticks_ms();frame++;frame_ms=last_ticks?clamp((int)(now-last_ticks),10,66):FRAME_MS;last_ticks=now;if(p)ui_dirty=1;if(screen==ST_TITLE&&(p&PRG32_BTN_A))screen=ST_MODE;else if(screen==ST_MODE){if(p&(PRG32_BTN_UP|PRG32_BTN_DOWN))multiplayer=!multiplayer;if(p&PRG32_BTN_A)new_campaign();}else if(screen==ST_TEAM){if(p&PRG32_BTN_LEFT)team_sel=(team_sel+3)%4;if(p&PRG32_BTN_RIGHT)team_sel=(team_sel+1)%4;if(p&PRG32_BTN_A){menu=0;screen=ST_MANAGER;}}else if(screen==ST_MANAGER)update_manager(p);else if(screen==ST_BRIEF){if(p&(PRG32_BTN_LEFT|PRG32_BTN_UP))course_sel=(course_sel+COURSE_COUNT-1)%COURSE_COUNT;if(p&(PRG32_BTN_RIGHT|PRG32_BTN_DOWN))course_sel=(course_sel+1)%COURSE_COUNT;if(p&PRG32_BTN_A){if(multiplayer){peer_count=local_ready=0;if(fairwind_net_join(course_sel))screen=ST_LOBBY;else multiplayer=0;}if(!multiplayer)start_race();}}else if(screen==ST_LOBBY)update_lobby(p);else if(screen==ST_RACE)update_race(in,r);else if(screen==ST_RESULT&&(p&PRG32_BTN_A)){if(multiplayer)prg32_multiplayer_leave();race_no++;if(race_no>=RACES)screen=ST_SEASON;else{menu=0;screen=ST_MANAGER;prg32_audio_play_track(0);}}else if(screen==ST_SEASON&&(p&PRG32_BTN_A)){screen=ST_TITLE;prg32_audio_play_track(0);}last_input=in;}
 
 /* ------------------------------------------------------------- menus -- */
-static void header(const char *t){fill(0,0,W,18,NAVY);prg32_gfx_text8(6,5,t,WHITE,NAVY);prg32_gfx_text8(238,5,"NAPOLI 1997",GOLD,NAVY);}
+static void header(const char *t){fill(0,0,W,18,NAVY);prg32_gfx_text8(6,5,t,WHITE,NAVY);prg32_gfx_text8(226,5,"NAPOLI 1997",GOLD,NAVY);}
 static void landscape(void){unsigned scene=(unsigned)(race_no%RACES),i=fairwind_background_offsets[scene],end=fairwind_background_offsets[scene+1];int x=0,y=27;fill(0,18,W,33,SKY);while(i<end){int count=fairwind_background_rle8[i++];uint8_t color=bg_idx[fairwind_background_rle8[i++]];while(count){int width=count<320-x?count:320-x;prg32_gfx_rect_indexed(x,y,width,1,color);x+=width;count-=width;if(x==320){x=0;y++;}}}fill(0,51,W,15,SEA);}
 /* The FairWind logo on a white badge over the venue skyline. */
-static void draw_title(void){header("FairWind");landscape();fill(106,56,108,108,WHITE);fairwind_draw_sprite(112,62,&logo_sprite,0);prg32_gfx_text8(49,170,"12-METRE AMERICA'S CUP",WHITE,SEA);prg32_gfx_text8(76,186,"PRESS A TO SET SAIL",GOLD,SEA);}
+static void draw_title(void){header("FairWind");landscape();fill(106,56,108,108,WHITE);fairwind_draw_sprite(112,62,&logo_sprite,0);prg32_gfx_text8(49,170,"12-METRE AMERICA S CUP",WHITE,SEA);fill(180,170,2,3,WHITE);prg32_gfx_text8(76,186,"PRESS A TO SET SAIL",GOLD,SEA);}
 static void draw_mode(void){header("CHAMPIONSHIP MODE");box(48,48,224,78,GREY,NAVY);prg32_gfx_text8(77,67,"SINGLE PLAYER",!multiplayer?GOLD:WHITE,NAVY);prg32_gfx_text8(77,94,"NETWORK MULTIPLAYER",multiplayer?GOLD:WHITE,NAVY);prg32_gfx_text8(74,151,"UP/DOWN  A CONFIRM",WHITE,SEA);}
 static void draw_team(void){int i;header("CHOOSE YOUR SYNDICATE");for(i=0;i<4;i++){int y=28+i*36;box(24,y,272,29,i==team_sel?GOLD:GREY,NAVY);fill(34,y+7,20,15,teams[i].color);prg32_gfx_text8(64,y+6,teams[i].name,WHITE,NAVY);prg32_gfx_text8(64,y+17,teams[i].code,GOLD,NAVY);}prg32_gfx_text8(55,178,"LEFT/RIGHT  A CONFIRM",WHITE,SEA);}
 static void statrow(int y,const char *n,int v,int s){int i;prg32_gfx_text8(30,y,n,s?GOLD:WHITE,NAVY);for(i=0;i<8;i++)fill(132+i*13,y,10,7,i<v?CYAN:GREY);}
@@ -609,7 +617,7 @@ static void draw_buoy(int x,int y,int next){
     proj(&base,&sx,&sy);proj(&top,&tx,&ty);w=top_view_mode?3:1+(int)(10*FOCAL/base.z);if(sx<-20||sx>W+20)return;
     if(ty>sy-2)ty=sy-2;rect_clip(sx-w,ty,2*w,sy-ty+1,ci(BUOY));rect_clip(sx-w,(ty+sy)/2,2*w,1,1);
     if(next&&(frame&16)){uint8_t g=ci(GOLD);rect_clip(sx-w-3,ty-3,2*w+6,1,g);rect_clip(sx-w-3,sy+2,2*w+6,1,g);rect_clip(sx-w-3,ty-3,1,sy-ty+6,g);rect_clip(sx+w+2,ty-3,1,sy-ty+6,g);}
-    if(next&&ty-12>CLIP_TOP&&sx>16&&sx<W-16)prg32_gfx_text8(sx-15,ty-12,"NEXT",YELLOW,PANEL);
+    if(next&&ty-12>CLIP_TOP&&sx>16&&sx<W-16)prg32_gfx_text8(sx-15,ty-12,"NEXT",GOLD,top_view_mode?SEA2:SEA1);
     if(next&&top_view_mode){int i;for(i=0;i<32;i++){v3 z=cam_pt(x*10+((MARK_ZONE*10*fsin((uint16_t)(i*2048)))>>14),y*10+((MARK_ZONE*10*fcos((uint16_t)(i*2048)))>>14),0);int zx,zy;if(plane_d(&z,0)<0||plane_d(&z,1)<0||plane_d(&z,2)<0||plane_d(&z,3)<0)continue;proj(&z,&zx,&zy);rect_clip(zx,zy,1,1,ci(GOLD));}}
 }
 /* Committee boat with flag hoist: orange line flag, class "12" to the start,
@@ -678,20 +686,19 @@ static void draw_minimap(void){
     for(i=3;i>=0;i--){int bx=map_x(boats[i].x/1000),by=map_y(boats[i].y/1000);if(i){fill(bx-1,by-1,2,2,teams[boats[i].team&3].kite);continue;}line2(bx,by,bx+(int)((5*fsin(boats[0].heading))>>14),by-(int)((5*fcos(boats[0].heading))>>14),WHITE);fill(bx-1,by-1,3,3,WHITE);}
     line2(262+(int)((5*fsin(twd))>>14),76-(int)((5*fcos(twd))>>14),262,76,GOLD);fill(261,75,3,3,GOLD);
 }
-/* Short signal banners: the HUD already counts down, and every text pixel is
-   converted by the firmware, so the banner names only the flag in force. */
-static void draw_start_signal(void){const char *msg;if(start_clock>300)msg="WARNING";else if(start_clock>240)msg="CLASS FLAG";else if(start_clock>120)msg="P FLAG UP";else if(start_clock>60)msg="ENTER BOX";else if(start_clock>0)msg="P FLAG DOWN";else msg="START";fill(112,20,96,12,PANEL);prg32_gfx_text8(160-4*slen(msg),22,msg,start_clock?WHITE:YELLOW,PANEL);if(time_scale()>RACE_TIME_SCALE)prg32_gfx_text8(148,34,"x20",YELLOW,PANEL);}
+/* Start-sequence banner: the signal in force and what it asks of the crews. */
+static void draw_start_signal(void){const char *msg;if(start_clock>300)msg="10 MIN - WARNING";else if(start_clock>240)msg="5 MIN - CLASS SIGNAL";else if(start_clock>120)msg="4 MIN - P FLAG UP";else if(start_clock>60)msg="2 MIN - ENTER THE BOX";else if(start_clock>0)msg="1 MIN - P FLAG DOWN";else msg="START - CLASS FLAG DOWN";fill(64,20,188,12,PANEL);prg32_gfx_text8(66,22,msg,start_clock?WHITE:GOLD,PANEL);if(time_scale()>RACE_TIME_SCALE)prg32_gfx_text8(64,34,">> x20",GOLD,PANEL);}
 static void draw_hud(void){
-    const boat_t *b=&boats[0];int len=course_len[course_sel],opt=trim_opt(awa_deg(b)),err=absi(b->boom)-opt,kp=b->kite_prog*100/65535;const char *msg=0;uint16_t mc=YELLOW;
+    const boat_t *b=&boats[0];int len=course_len[course_sel],opt=trim_opt(awa_deg(b)),err=absi(b->boom)-opt,kp=b->kite_prog*100/65535;const char *msg=0;uint16_t mc=GOLD;
     fill(0,CLIP_BOT,W,H-CLIP_BOT,PANEL);
-    prg32_gfx_text8(4,182,start_clock?"T-":"R",start_clock?YELLOW:WHITE,PANEL);clock_mmss(20,182,start_clock?start_clock:race_clock,start_clock?YELLOW:WHITE,PANEL);
-    small_num(68,182,(int)((b->v>>8)*100/5144),1,WHITE,PANEL);prg32_gfx_text8(100,182,"KT",CYAN,PANEL);
-    prg32_gfx_text8(122,182,"TWA",CYAN,PANEL);small_num(148,182,absi(BAM2DEG(b->twa)),0,WHITE,PANEL);
+    prg32_gfx_text8(4,182,start_clock?"T-":"R",start_clock?GOLD:WHITE,PANEL);clock_mmss(20,182,start_clock?start_clock:race_clock,start_clock?GOLD:WHITE,PANEL);
+    small_num(68,182,(int)((b->v>>8)*100/5144),1,WHITE,PANEL);prg32_gfx_text8(100,182,"KT",GREY,PANEL);
+    prg32_gfx_text8(122,182,"TWA",GREY,PANEL);small_num(148,182,absi(BAM2DEG(b->twa)),0,WHITE,PANEL);
     prg32_gfx_text8(180,182,b->kite==KITE_SPIN?"SPI":b->kite==KITE_GENN?"GEN":"JIB",b->kite?teams[b->team&3].kite:WHITE,PANEL);
-    if(b->kite!=b->kite_want||(b->kite&&kp<100)){small_num(206,182,kp,0,YELLOW,PANEL);prg32_gfx_text8(230,182,b->kite!=b->kite_want?"v":"^",YELLOW,PANEL);}
-    if(b->started&&b->leg<len){prg32_gfx_text8(250,182,"NEXT",YELLOW,PANEL);digit(290,182,b->leg+1,YELLOW,PANEL);}else if(b->started)prg32_gfx_text8(250,182,"FINISH",YELLOW,PANEL);
-    fill(4,192,128,6,C6(1,1,2));fill(4+opt*14/10-4,192,9,6,C6(0,3,1));fill(4+b->sheet*14/10,197,1,2,GOLD);fill(4+clamp(absi(b->boom),0,90)*14/10,191,2,8,WHITE);
-    prg32_gfx_text8(136,191,err>8?"LUFF":err<-12?"STALL":"GOOD",err>8?RED:err<-12?YELLOW:GREEN,PANEL);
+    if(b->kite!=b->kite_want||(b->kite&&kp<100)){small_num(206,182,kp,0,GOLD,PANEL);prg32_gfx_text8(230,182,b->kite!=b->kite_want?"v":"^",GOLD,PANEL);}
+    if(b->started&&b->leg<len){prg32_gfx_text8(250,182,"NEXT",GOLD,PANEL);digit(290,182,b->leg+1,GOLD,PANEL);}else if(b->started)prg32_gfx_text8(250,182,"FINISH",GOLD,PANEL);
+    prg32_gfx_text8(4,191,"TRIM",GREY,PANEL);fill(40,192,92,6,C6(1,1,2));fill(40+opt-4,192,9,6,C6(0,3,1));fill(40+b->sheet,197,1,2,GOLD);fill(40+clamp(absi(b->boom),0,90),191,2,8,WHITE);
+    prg32_gfx_text8(136,191,err>8?"LUFF":err<-12?"STALL":"GOOD",err>8?RED:err<-12?GOLD:GREEN,PANEL);
     if(b->serving)msg="PENALTY TURN";
     else if(b->penalty){msg=(frame&32)?rule_names[b->rule]:"A+B PENALTY";mc=RED;}
     else if(b->aground){msg=b->y>(FIELD_Y1-20)*1000?"AREA LIMIT":"AGROUND";mc=RED;}
@@ -708,7 +715,7 @@ static void draw_race(void){
     if(!race_header){header(race_names[race_no]);race_header=1;}
     draw_wind_gauge();draw_minimap();
     if(start_line_active)draw_start_signal();
-    if(top_view_mode)prg32_gfx_text8(148,170,"TOP",YELLOW,PANEL);
+    if(top_view_mode)prg32_gfx_text8(128,170,"TOP VIEW",GOLD,SEA2);
     /* The header is static and the HUD refreshes at 7.5 Hz, so most frames
        push only rows 18-179 over SPI. */
     if(!(frame&3)||hud_force){draw_hud();hud_force=0;}

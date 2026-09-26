@@ -23,6 +23,19 @@ index = 16 + 36·r + 6·g + b,        r, g, b ∈ {0, …, 5}
 
 Indices 0–7 are eight "named" colours (black, white, red, green, blue, yellow, cyan, magenta), and 232–255 are greys. When the palette buffer is sent to the LCD, each index is looked up and expanded back to RGB565.
 
+The palette is **runtime state**, not a constant. The firmware only loads its default at boot, the PRG32 emulators start from a different (3-3-2) palette, and any cartridge can change entries with `prg32_palette_set`, which survive into the next cartridge. A game that relies on the default palette therefore shows different colours on different devices and even from run to run. FairWind loads all 256 entries itself at start-up:
+
+```c
+static void set_palette(void) {
+    /* 0-15 named and system colours, 16-231 the cube, 232-247 the panoramas'
+       own 16 colours exactly, 248-255 a grey ramp */
+    ...
+    for (i = 0; i < 216; i++) prg32_palette_set(16 + i, C6(i / 36, i / 6 % 6, i % 6));
+    for (i = 0; i < 16; i++)  prg32_palette_set(BG_BASE + i, fairwind_background_palette[i]);
+    ...
+}
+```
+
 This has two consequences for a game programmer.
 
 **Only cube colours are shown exactly.** Any RGB565 colour you ask for is rounded to the nearest cube level. FairWind defines all its race colours directly as cube levels, so what you design is what you see:
@@ -69,7 +82,7 @@ while (i < end) {
 }
 ```
 
-`bg_idx` holds the palette index of each of the 16 panorama colours. It is computed once at start-up, so the decoder never converts a colour.
+`bg_idx` holds the palette index of each of the 16 panorama colours. Because `set_palette()` loads those colours exactly into entries 232–247, `bg_idx[i]` is simply `232 + i`, so the decoder never converts a colour and the skyline keeps its authored shades.
 
 ## 10.3 Bitplane sprites: the logo
 

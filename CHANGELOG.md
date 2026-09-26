@@ -1,5 +1,17 @@
 # Changelog
 
+## 4.2.0 — 2026-09-26 — Consistent colours, navy race panels
+
+### Graphics
+
+- The cartridge loads the whole 256-entry palette at start-up. Colours no longer depend on the runtime's default palette or on what the previous cartridge left: the PRG32 emulators showed a pink sea, yellow menu backgrounds and colours that changed from run to run.
+- The Bay of Naples panoramas use their 16 authored colours exactly instead of the nearest cube colours.
+- Menu colours (sea, sky, navy, gold, grey) are cube levels, so text backgrounds match the fills around them on every runtime.
+- "NAPOLI 1997" in the header is no longer clipped at the right edge.
+- The title's apostrophe is drawn by the cartridge, since not every runtime font has one.
+- The race view is back to the 4.0.0 look: navy instrument panels and HUD with orange and grey labels, the `TRIM` label, the full start-sequence banners ("2 MIN - ENTER THE BOX"), `TOP VIEW` and the `NEXT` label over the next mark. It costs about 2 ms more CPU per frame (see `docs/PERFORMANCE.md` §6).
+- Gold and grey are the orange (5,3,0) and grey (2,2,2) cube levels of 4.0.0.
+
 ## 4.1.0 — 2026-09-26 — Fluid on the ESP32-C6, new logo, tutorial
 
 ### Performance

@@ -1,5 +1,5 @@
 /* Host renderer: runs the real game.c against a 320x200 framebuffer that
-   quantises colours like the ILI9341's 6x6x6 palette, drives the player's
+   resolves colours through the palette the cartridge loads, drives the player's
    yacht with the same AI helm the rivals use, and writes PPM frames.
    Built and run by tools/host_capture.py; not part of the cartridge. */
 #include <stdio.h>
@@ -9,10 +9,14 @@
 
 static uint16_t fb[200][320];
 static uint32_t g_input;
+/* The palette the cartridge loads; RGB565 colours resolve to an entry the
+   way the firmware's prg32_gfx_index_for_rgb565 does. */
+static uint16_t g_pal[256];
 static uint16_t quant(uint16_t c) {
-    unsigned r = ((c >> 11) & 31u) * 5u / 31u, g = ((c >> 5) & 63u) * 5u / 63u, b = (c & 31u) * 5u / 31u;
-    if (c == 0xffff || c == 0xf800 || c == 0x07e0 || c == 0x001f || c == 0xffe0 || c == 0x07ff || c == 0xf81f) return c;
-    return (uint16_t)(((r * 31u / 5u) << 11) | ((g * 63u / 5u) << 5) | (b * 31u / 5u));
+    static const uint16_t named[8] = {0x0000, 0xffff, 0xf800, 0x07e0, 0x001f, 0xffe0, 0x07ff, 0xf81f};
+    unsigned r = ((c >> 11) & 31u) * 5u / 31u, g = ((c >> 5) & 63u) * 5u / 63u, b = (c & 31u) * 5u / 31u, i;
+    for (i = 0; i < 8; i++) if (c == named[i]) return g_pal[i];
+    return g_pal[16u + r * 36u + g * 6u + b];
 }
 
 #include "../src/game.c"
@@ -26,13 +30,8 @@ static void raw_rect(int x, int y, int w, int h, uint16_t c) {
 }
 void prg32_gfx_rect(int x, int y, int w, int h, uint16_t c) { raw_rect(x, y, w, h, quant(c)); }
 void prg32_gfx_pixel(int x, int y, uint16_t c) { prg32_gfx_rect(x, y, 1, 1, c); }
-/* Palette indices map back to RGB565 exactly as the firmware palette does. */
-static uint16_t pal(uint8_t i) {
-    static const uint16_t named[8] = {0x0000, 0xffff, 0xf800, 0x07e0, 0x001f, 0xffe0, 0x07ff, 0xf81f};
-    unsigned v = i - 16u;
-    if (i < 8) return named[i];
-    return (uint16_t)((((v / 36u) * 31u / 5u) << 11) | ((((v / 6u) % 6u) * 63u / 5u) << 5) | ((v % 6u) * 31u / 5u));
-}
+static uint16_t pal(uint8_t i) { return g_pal[i]; }
+void prg32_palette_set(uint8_t i, uint16_t c) { g_pal[i] = c; }
 void prg32_gfx_rect_indexed(int x, int y, int w, int h, uint8_t i) { raw_rect(x, y, w, h, pal(i)); }
 void prg32_gfx_pixel_indexed(int x, int y, uint8_t i) { raw_rect(x, y, 1, 1, pal(i)); }
 void prg32_gfx_clear_indexed(uint8_t i) { raw_rect(0, 0, 320, 200, pal(i)); }
