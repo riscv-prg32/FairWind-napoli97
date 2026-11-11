@@ -1,46 +1,47 @@
-/* Host renderer: runs the real game.c against a 320x200 framebuffer that
-   quantises colours like the ILI9341's 6x6x6 palette, drives the player's
-   yacht with the same AI helm the rivals use, and writes PPM frames.
+/* Host renderer: runs the real game.c against a 320x200 indexed
+   framebuffer with the cartridge's own palette (fills by index, text in
+   RGB565 like the QEMU backend), drives the player's yacht with the same AI
+   helm the rivals use, and writes PPM frames.
    Built and run by tools/host_capture.py; not part of the cartridge. */
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include "font8.h"
 
-static uint16_t fb[200][320];
+static uint16_t fb[200][320], pal[256];
 static uint32_t g_input;
-static uint16_t quant(uint16_t c) {
-    unsigned r = ((c >> 11) & 31u) * 5u / 31u, g = ((c >> 5) & 63u) * 5u / 63u, b = (c & 31u) * 5u / 31u;
-    if (c == 0xffff || c == 0xf800 || c == 0x07e0 || c == 0x001f || c == 0xffe0 || c == 0x07ff || c == 0xf81f) return c;
-    return (uint16_t)(((r * 31u / 5u) << 11) | ((g * 63u / 5u) << 5) | (b * 31u / 5u));
-}
 
 #include "../src/game.c"
 
 uint32_t prg32_input_read(void) { return g_input; }
 void prg32_band_set_game_info(const char *s) { (void)s; }
+void prg32_band_set_colors(uint8_t b, uint16_t f, uint16_t g) { (void)b; (void)f; (void)g; }
 void prg32_audio_play_track(uint16_t t) { (void)t; }
-void prg32_gfx_rect(int x, int y, int w, int h, uint16_t c) {
-    int i, j; c = quant(c);
+void prg32_audio_stop_track(void) {}
+void prg32_audio_stop_all(void) {}
+void prg32_audio_note_on_pan(uint8_t v, uint8_t i, uint8_t n, uint8_t vol, int8_t pan) { (void)v; (void)i; (void)n; (void)vol; (void)pan; }
+void prg32_audio_note_off(uint8_t v) { (void)v; }
+void prg32_audio_set_channel_volume(uint8_t v, uint8_t vol) { (void)v; (void)vol; }
+void prg32_audio_set_channel_pan(uint8_t v, int8_t pan) { (void)v; (void)pan; }
+void prg32_palette_set(uint8_t i, uint16_t c) { pal[i] = c; }
+static void rect565(int x, int y, int w, int h, uint16_t c) {
+    int i, j;
     for (j = y; j < y + h; j++) if (j >= 0 && j < 200) for (i = x; i < x + w; i++) if (i >= 0 && i < 320) fb[j][i] = c;
 }
-void prg32_gfx_pixel(int x, int y, uint16_t c) { prg32_gfx_rect(x, y, 1, 1, c); }
-void prg32_gfx_clear(uint16_t c) { prg32_gfx_rect(0, 0, 320, 200, c); }
+void prg32_gfx_rect_indexed(int x, int y, int w, int h, uint8_t c) { rect565(x, y, w, h, pal[c]); }
+void prg32_gfx_pixel_indexed(int x, int y, uint8_t c) { rect565(x, y, 1, 1, pal[c]); }
 void prg32_gfx_present(void) {}
 void prg32_gfx_text8(int x, int y, const char *s, uint16_t fg, uint16_t bg) {
     for (; *s; s++, x += 8) {
         unsigned ch = (unsigned char)*s; const uint8_t *g = g_font8[(ch < 32 || ch > 126 ? '?' : ch) - 32];
-        for (int r = 0; r < 8; r++) for (int c = 0; c < 8; c++) prg32_gfx_rect(x + c, y + r, 1, 1, (g[r] & (0x80 >> c)) ? fg : bg);
+        for (int r = 0; r < 8; r++) for (int c = 0; c < 8; c++) rect565(x + c, y + r, 1, 1, (g[r] & (0x80 >> c)) ? fg : bg);
     }
 }
-void prg32_sprite_draw_bitplanes(int x, int y, const prg32_indexed_sprite_t *s, uint32_t frame_no) {
-    unsigned rb = (s->width + 7u) / 8u, fsz = rb * s->height * s->bits_per_pixel;
-    for (int yy = 0; yy < s->height; yy++) for (int xx = 0; xx < s->width; xx++) {
-        unsigned v = 0;
-        for (int p = 0; p < s->bits_per_pixel; p++) if (s->pixels[frame_no * fsz + (p * s->height + yy) * rb + xx / 8] & (0x80 >> (xx & 7))) v |= 1u << p;
-        if ((int)v != s->transparent_index) prg32_gfx_rect(x + xx, y + yy, 1, 1, s->palette[v]);
-    }
-}
+uint32_t prg32_multiplayer_local_player_id(void) { return 0; }
+int prg32_score_submit_current_player(const char *g, uint32_t s) { (void)g; (void)s; return 0; }
+int prg32_score_count(const char *g) { (void)g; return 0; }
+int prg32_score_get(const char *g, int i, prg32_score_t *o) { (void)g; (void)i; (void)o; return -1; }
 void prg32_multiplayer_init(void) {}
 int prg32_multiplayer_available(void) { return 0; }
 int prg32_multiplayer_join(const char *r, uint32_t o) { (void)r; (void)o; return -1; }
@@ -69,7 +70,7 @@ static uint32_t autopilot(void) {
     static boat_t shadow; static uint32_t kite_hold; boat_t s = boats[0]; uint32_t in = 0;
     s.ai_clock = shadow.ai_clock; s.ai_tack = shadow.ai_tack; s.ai_last_tack = shadow.ai_last_tack;
     s.team = boats[0].team; s.rudder = 0; helm_ai(&s); shadow = s;
-    if (boats[0].penalty && !boats[0].serving) return PRG32_BTN_A | PRG32_BTN_B;
+    if (boats[0].penalty && !boats[0].serving) return PRG32_BTN_A; /* hold A: penalty turn */
     if (s.rudder <= -10) in |= PRG32_BTN_LEFT; else if (s.rudder >= 10) in |= PRG32_BTN_RIGHT;
     if (s.sheet > boats[0].sheet + 1) in |= PRG32_BTN_UP; else if (s.sheet + 1 < boats[0].sheet) in |= PRG32_BTN_DOWN;
     if (kite_hold) { kite_hold--; return in; }
@@ -83,9 +84,10 @@ int main(int argc, char **argv) {
     int course = argc > 2 ? atoi(argv[2]) : 0, venue = argc > 3 ? atoi(argv[3]) : 1, n = 0, last_top = 0, last_kite = 0, last_leg = 0, got_run = 0, got_top = 0, got_beat = 0;
     long f; char name[64];
     outdir = argc > 1 ? argv[1] : ".";
-    fairwind_init(); shot("01-title");
+    fairwind_init(); for (int i = 0; i < 200; i++) fairwind_update(); shot("01-title");
     tap(PRG32_BTN_A); shot("02-mode");
-    tap(PRG32_BTN_A); tap(PRG32_BTN_A); menu = 2; strategy = 3; shot("03-team-hq");
+    tap(PRG32_BTN_A); team_sel = 1; for (int i = 0; i < 40; i++) fairwind_update(); shot("02b-team");
+    tap(PRG32_BTN_A); menu = 2; strategy = 3; shot("03-team-hq");
     menu = 5; tap(PRG32_BTN_A); race_no = venue; course_sel = course; shot("04-race-briefing");
     tap(PRG32_BTN_A);
     for (f = 0; screen == ST_RACE && f < 200000; f++) {

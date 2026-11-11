@@ -1,4 +1,4 @@
-"""Store images count toward the 64 KiB package ceiling, so they are saved
+"""Store images count toward the 128 KiB package ceiling, so they are saved
 losslessly as small as possible: an exact palette PNG when they fit one."""
 from PIL import Image
 

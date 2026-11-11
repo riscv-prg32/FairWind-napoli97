@@ -3,7 +3,7 @@
 
 The Store requires manifest.abi == prg32-metadata-1.0 and rebuilds every
 cartridge from the manifest itself: metadata fields come from the manifest,
-the screenshot from assets.splash, and the colophon from an inline object.
+the screenshot from assets.splash, the gameplay video from assets.preview, and the colophon from an inline object.
 Deriving it here keeps the bundle in step with metadata/*.json.
 """
 import json, sys
@@ -17,7 +17,7 @@ assert meta['abi'] == 'prg32-metadata-1.0'
 assert colophon['version'] == meta['version'] and colophon['title'] == meta['title']
 manifest = dict(meta)
 manifest['architectures'] = [{'id': a, 'file': f"{meta['name']}-{a}.prg32"} for a in meta['runtime']['architectures']]
-manifest['assets'] = {'icon': 'icon.png', 'splash': 'screenshot.png'}
+manifest['assets'] = {'icon': 'icon.png', 'splash': 'screenshot.png', 'preview': 'preview.mp4'}
 manifest['colophon'] = colophon
 out.write_text(json.dumps(manifest, ensure_ascii=False, separators=(',', ':')) + '\n')
 print(f'wrote {out}')

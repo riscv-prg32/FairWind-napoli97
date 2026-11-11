@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
-size_t strlen(const char *s);
+#include <string.h>
 
 static uint32_t g_input = 0;
 static long g_gfx_calls = 0;
@@ -23,8 +23,10 @@ static void reset_peers(void) {
     for (int i = 0; i < 3; i++) { g_peer_ids[i] = (uint32_t)i; g_peer_y[i] = 150; g_peer_flags[i] = (uint16_t)(((i & 3) << 3) | 0x140); }
 }
 
+static int g_oob = 0;
 static void note_rect(int x, int y, int w, int h) {
     g_gfx_calls++;
+    if (x < 0 || y < 0 || x + w > 320 || y + h > 200) { if (g_oob++ < 5) printf("FAIL: off-screen draw %d,%d %dx%d\n", x, y, w, h); }
     if (x < g_min_x) g_min_x = x;
     if (y < g_min_y) g_min_y = y;
     if (x + w > g_max_x) g_max_x = x + w;
@@ -33,18 +35,28 @@ static void note_rect(int x, int y, int w, int h) {
 
 #include "../../src/game.c"
 
+static int g_palette_sets = 0, g_notes = 0, g_score_submits = 0;
+static uint32_t g_last_score = 0;
 uint32_t prg32_input_read(void) { return g_input; }
 void prg32_band_set_game_info(const char *s) { (void)s; }
+void prg32_band_set_colors(uint8_t b, uint16_t fg, uint16_t bg) { (void)b; (void)fg; (void)bg; }
 void prg32_audio_play_track(uint16_t t) { if (t < 16) g_track_plays[t]++; }
-void prg32_gfx_clear(uint16_t c) { (void)c; note_rect(0, 0, 320, 200); }
+void prg32_audio_stop_track(void) {}
+void prg32_audio_stop_all(void) {}
+void prg32_audio_note_on_pan(uint8_t v, uint8_t i, uint8_t n, uint8_t vol, int8_t pan) { (void)v; (void)n; (void)vol; (void)pan; if (i >= 20) { printf("FAIL: note on undefined instrument %d\n", i); exit(1); } g_notes++; }
+void prg32_audio_note_off(uint8_t v) { (void)v; }
+void prg32_audio_set_channel_volume(uint8_t v, uint8_t vol) { (void)v; (void)vol; }
+void prg32_audio_set_channel_pan(uint8_t v, int8_t pan) { (void)v; (void)pan; }
 void prg32_gfx_present(void) {}
-void prg32_gfx_rect(int x, int y, int w, int h, uint16_t c) { (void)c; note_rect(x, y, w, h); }
-void prg32_gfx_pixel(int x, int y, uint16_t c) { (void)c; note_rect(x, y, 1, 1); }
+void prg32_gfx_rect_indexed(int x, int y, int w, int h, uint8_t c) { (void)c; if (w > 0 && h > 0) note_rect(x, y, w, h); }
+void prg32_gfx_pixel_indexed(int x, int y, uint8_t c) { (void)c; note_rect(x, y, 1, 1); }
+void prg32_palette_set(uint8_t i, uint16_t c) { (void)i; (void)c; g_palette_sets++; }
+uint32_t prg32_multiplayer_local_player_id(void) { return 1000; }
+int prg32_score_submit_current_player(const char *g, uint32_t s) { (void)g; g_last_score = s; g_score_submits++; return 0; }
+int prg32_score_count(const char *g) { (void)g; return g_score_submits ? 1 : 0; }
+int prg32_score_get(const char *g, int i, prg32_score_t *out) { (void)g; if (i || !g_score_submits) return -1; memset(out, 0, sizeof *out); memcpy(out->player, "SKIPPER", 8); out->score = g_last_score; return 0; }
 void prg32_gfx_text8(int x, int y, const char *s, uint16_t fg, uint16_t bg) {
     (void)fg; (void)bg; note_rect(x, y, (int)strlen(s) * 8, 8);
-}
-void prg32_sprite_draw_bitplanes(int x, int y, const prg32_indexed_sprite_t *s, uint32_t frame) {
-    (void)frame; note_rect(x, y, s->width, s->height);
 }
 void prg32_multiplayer_init(void) {}
 int prg32_multiplayer_available(void) { return 1; }
@@ -116,7 +128,7 @@ static void run_one_full_season(int verbose) {
             uint32_t in = 0;
             if ((race_frames + race_clock) % 7 < 3) in |= PRG32_BTN_LEFT;
             else if ((race_frames + race_clock) % 7 < 6) in |= PRG32_BTN_RIGHT;
-            if (boats[0].penalty) in |= PRG32_BTN_B;
+            if (boats[0].penalty) in |= PRG32_BTN_A; /* hold A: penalty turn */
             g_input = in;
             fairwind_update();
             g_input = 0;
@@ -148,13 +160,16 @@ static void run_one_full_season(int verbose) {
     if (verbose) printf("season finished after %d results, money=%d wins=%d points=[%d,%d,%d,%d]\n",
                          race, money, wins, points[0], points[1], points[2], points[3]);
     CHECK(race == RACES, "exactly RACES result screens should have been shown");
+    CHECK(g_score_submits == 1, "season end submits one hall-of-fame score");
+    fairwind_draw();
+    CHECK(g_palette_sets > 0 && g_notes > 0, "palette and sound are driven");
 }
 
 static void run_multiplayer_smoke(void) {
     reset_harness_globals();
     fairwind_init();
     tap(PRG32_BTN_A); /* MODE */
-    multiplayer = 1; /* force the mode directly: the UP toggle is order-dependent on prior test state */
+    menu = 1; /* NETWORK MULTIPLAYER on the mode screen */
     tap(PRG32_BTN_A); /* confirm -> TEAM */
     tap(PRG32_BTN_A); /* pick team -> MANAGER */
     menu = 5;
@@ -182,8 +197,7 @@ static void run_fuzz_season(uint32_t seed, int verbose) {
     reset_harness_globals();
     fairwind_init();
     tap(PRG32_BTN_A);
-    if (fuzz_next() & 1) tap(PRG32_BTN_UP); /* randomly poke multiplayer toggle then back off */
-    if (multiplayer) tap(PRG32_BTN_UP);
+    if (fuzz_next() & 1) { tap(PRG32_BTN_UP); tap(PRG32_BTN_DOWN); } /* poke the mode menu, then back */
     tap(PRG32_BTN_A); /* single player campaign */
     for (int i = 0; i < (int)(fuzz_next() % 4); i++) tap(PRG32_BTN_RIGHT);
     tap(PRG32_BTN_A); /* team -> manager */
@@ -205,8 +219,10 @@ static void run_fuzz_season(uint32_t seed, int verbose) {
             uint32_t r = fuzz_next();
             uint32_t in = 0;
             if (r % 3 == 0) in |= PRG32_BTN_LEFT; else if (r % 3 == 1) in |= PRG32_BTN_RIGHT;
-            if (boats[0].penalty && (r & 4)) in |= PRG32_BTN_B;
+            if (boats[0].penalty && (r & 4)) in |= PRG32_BTN_A;
             if (r & 0x100) in |= PRG32_BTN_A;
+            if ((r & 0xff0000) == 0x420000) in |= PRG32_BTN_B;
+            if (race_menu) { tap(PRG32_BTN_B); CHECK(!race_menu, "fuzz: B closes the race menu"); continue; }
             g_input = in; fairwind_update(); g_input = 0;
             if ((race_clock + race_frames) % 25 == 0) fairwind_draw();
             for (int i = 0; i < 4; i++) {
@@ -235,7 +251,7 @@ static void run_multiplayer_disconnect_scenario(void) {
     reset_harness_globals();
     fairwind_init();
     tap(PRG32_BTN_A);
-    multiplayer = 1; /* force the mode directly: the UP toggle is order-dependent on prior test state */
+    menu = 1; /* NETWORK MULTIPLAYER on the mode screen */
     tap(PRG32_BTN_A);
     tap(PRG32_BTN_A);
     menu = 5;
@@ -267,7 +283,7 @@ static void enter_lobby(int n) {
     reset_harness_globals();
     fairwind_init();
     tap(PRG32_BTN_A);
-    multiplayer = 1;
+    menu = 1;
     tap(PRG32_BTN_A);
     tap(PRG32_BTN_A);
     menu = 5;
@@ -352,7 +368,7 @@ static void run_ai_team_scenario(void) {
 static void run_dnf_order_scenario(void) {
     reset_harness_globals();
     fairwind_init();
-    tap(PRG32_BTN_A); multiplayer = 0; tap(PRG32_BTN_A); tap(PRG32_BTN_A);
+    tap(PRG32_BTN_A); menu = 0; tap(PRG32_BTN_A); tap(PRG32_BTN_A);
     menu = 5; tap(PRG32_BTN_A); tap(PRG32_BTN_A);
     CHECK(screen == ST_RACE, "dnf: race should start");
     start_clock = 0; race_clock = RACE_LIMIT_SECONDS; race_frames = frames_per_sim_second() - 1;
@@ -368,13 +384,13 @@ static void run_dnf_order_scenario(void) {
 static void open_water(int tws, uint16_t heading) {
     reset_harness_globals();
     fairwind_init();
-    tap(PRG32_BTN_A); multiplayer = 0; tap(PRG32_BTN_A); tap(PRG32_BTN_A);
+    tap(PRG32_BTN_A); menu = 0; tap(PRG32_BTN_A); tap(PRG32_BTN_A);
     menu = 5; tap(PRG32_BTN_A); tap(PRG32_BTN_A);
     start_clock = 0; start_line_active = 0; race_clock = 1;
     for (int i = 1; i < 4; i++) { boats[i].finished = 1; boats[i].x = (-800 + 60 * i) * 1000; boats[i].y = 1200000; }
     boats[0].x = 0; boats[0].y = 300000; boats[0].heading = heading; boats[0].v = 0; boats[0].started = 1; boats[0].leg = 0;
     boats[0].kite = boats[0].kite_want = KITE_NONE; boats[0].kite_prog = 0; boats[0].penalty = boats[0].serving = 0;
-    hull = sails = crew = strategy = 1;
+    hull = sails = crew = strategy = 1; auto_trim = 0; manual_trim = 0;
     wind_seed = 0; wind_t = 0; twd = 0; tws10 = tws; top_view_mode = 0;
 }
 /* Sail n frames holding the heading, trimming to the optimum, wind frozen. */
@@ -492,23 +508,85 @@ static void run_kite_scenario(void) {
     printf("kite: jib %d, spinnaker %d (knots x10)\n", jib, spin);
 }
 
-static void run_penalty_combo_scenario(void) {
+static void hold(uint32_t b, int frames) { for (int i = 0; i < frames; i++) update_race(b, 0); update_race(0, b); }
+static void run_penalty_hold_scenario(void) {
     open_water(120, (uint16_t)DEG(270));
     sail_frames(1500, 1);
     award_penalty(&boats[0], RULE_PORT);
-    update_race(PRG32_BTN_A, 0);
-    update_race(PRG32_BTN_A | PRG32_BTN_B, 0);
-    update_race(PRG32_BTN_B, PRG32_BTN_A);
-    update_race(0, PRG32_BTN_B);
-    CHECK(boats[0].serving, "penalty: A+B starts the penalty turn");
-    CHECK(boats[0].kite_want == KITE_NONE, "penalty: A+B never toggles a kite");
+    /* A chord of A and B means nothing (the firmware owns A+B+DOWN). */
+    hold(PRG32_BTN_A | PRG32_BTN_B, HOLD_FRAMES + 10);
+    CHECK(!boats[0].serving && !race_menu && boats[0].kite_want == KITE_NONE, "penalty: an A+B chord does nothing");
+    /* A short tap of A is the spinnaker, not the turn. */
+    hold(PRG32_BTN_A, HOLD_FRAMES - 10);
+    CHECK(!boats[0].serving && boats[0].kite_want == KITE_SPIN, "penalty: a tap of A toggles the spinnaker");
+    hold(PRG32_BTN_A, 2);
+    CHECK(boats[0].kite_want == KITE_NONE, "penalty: tapping A again drops it");
+    hold(PRG32_BTN_A, HOLD_FRAMES + 5);
+    CHECK(boats[0].serving, "penalty: holding A starts the penalty turn");
+    CHECK(boats[0].kite_want == KITE_NONE, "penalty: holding A never toggles a kite");
     int frames = 0;
     while (boats[0].penalty && frames < 20000) { sail_frames(1, 0); frames++; }
     CHECK(!boats[0].penalty && boats[0].rule == RULE_NONE, "penalty: a full 360 turn clears the penalty");
     CHECK(frames > 60, "penalty: the turn takes time");
-    update_race(PRG32_BTN_A | PRG32_BTN_B, 0); update_race(0, PRG32_BTN_A | PRG32_BTN_B);
-    CHECK(!boats[0].serving, "penalty: A+B without a penalty does nothing");
+    hold(PRG32_BTN_A, HOLD_FRAMES + 5);
+    CHECK(!boats[0].serving, "penalty: holding A without a penalty does nothing");
     printf("penalty: turn served in %d frames\n", frames);
+}
+
+static void run_race_menu_scenario(void) {
+    open_water(120, (uint16_t)DEG(270));
+    sail_frames(300, 1);
+    g_input = PRG32_BTN_B; for (int i = 0; i < HOLD_FRAMES + 2; i++) fairwind_update();
+    CHECK(race_menu, "menu: holding B opens the race menu");
+    CHECK(boats[0].kite_want == KITE_NONE, "menu: holding B does not hoist the gennaker");
+    g_input = 0; fairwind_update();
+    int frozen = race_clock * 1000 + race_frames;
+    for (int i = 0; i < 60; i++) fairwind_update();
+    CHECK(race_clock * 1000 + race_frames == frozen, "menu: the race clock stops while paused");
+    tap(PRG32_BTN_DOWN); tap(PRG32_BTN_A);
+    CHECK(auto_trim == 1 && race_menu, "menu: A on AUTO TRIM toggles it");
+    tap(PRG32_BTN_B);
+    CHECK(!race_menu, "menu: B resumes the race");
+    tap(PRG32_BTN_A);
+    CHECK(boats[0].kite_want == KITE_SPIN, "menu: the first tap after resuming is not swallowed");
+    g_input = PRG32_BTN_B; for (int i = 0; i < HOLD_FRAMES + 2; i++) fairwind_update(); g_input = 0; fairwind_update();
+    tap(PRG32_BTN_DOWN); tap(PRG32_BTN_DOWN); tap(PRG32_BTN_A);
+    CHECK(boats[0].retired && boats[0].finished, "menu: RETIRE retires the yacht");
+    for (int i = 0; i < 10 && screen == ST_RACE; i++) fairwind_update();
+    CHECK(screen == ST_RESULT, "menu: retiring alone ends the single-player race");
+    printf("race menu: pause, auto trim, resume and retire verified\n");
+}
+
+static void run_auto_trim_scenario(void) {
+    open_water(120, (uint16_t)DEG(270));
+    auto_trim = 1; boats[0].sheet = 90;
+    for (int i = 0; i < 1500; i++) { wind_t = 0; race_frames = 0; update_race(0, 0); twd = 0; boats[0].x = 0; boats[0].y = 300000; }
+    int opt = trim_opt(awa_deg(&boats[0]));
+    CHECK(absi(boats[0].sheet - opt) <= 3, "auto trim: the crew trims to the optimum");
+    update_race(PRG32_BTN_UP, 0);
+    for (int i = 0; i < 30; i++) update_race(PRG32_BTN_UP, 0);
+    int eased = boats[0].sheet;
+    for (int i = 0; i < 40; i++) update_race(0, 0);
+    CHECK(boats[0].sheet == eased, "auto trim: a manual trim is respected for a while");
+    printf("auto trim: settled at %d (optimum %d)\n", boats[0].sheet, opt);
+}
+
+static void run_lobby_team_scenario(void) {
+    /* Two consoles picked the same syndicate: the higher id yields. */
+    enter_lobby(1);
+    team_sel = 1; g_peer_ids[0] = 5; g_peer_flags[0] = (uint16_t)(1 << 3);
+    fairwind_update();
+    CHECK(race_team == 2, "lobby: a taken syndicate moves this console to the next free one");
+    /* A race already well under way makes a late joiner wait. */
+    g_peer_flags[0] = (uint16_t)((1 << 3) | 0x100 | 0x8000);
+    for (int i = 0; i < 50; i++) { g_input = PRG32_BTN_A; fairwind_update(); }
+    g_input = 0;
+    CHECK(screen == ST_LOBBY, "lobby: a late joiner waits for the running race to end");
+    g_peer_flags[0] = (uint16_t)((1 << 3) | 0x40);
+    fairwind_update();
+    CHECK(screen == ST_RACE && boats[0].team == 2, "lobby: the race starts in the yielded colours");
+    /* Points still go to the campaign's own syndicate. */
+    printf("lobby teams: yielded to syndicate %d\n", race_team);
 }
 
 static void run_land_scenario(void) {
@@ -558,7 +636,7 @@ static void run_wind_scenario(void) {
 static void run_ai_race_scenario(int course) {
     reset_harness_globals();
     fairwind_init();
-    tap(PRG32_BTN_A); multiplayer = 0; tap(PRG32_BTN_A); tap(PRG32_BTN_A);
+    tap(PRG32_BTN_A); menu = 0; tap(PRG32_BTN_A); tap(PRG32_BTN_A);
     menu = 5; tap(PRG32_BTN_A);
     course_sel = course; tap(PRG32_BTN_A);
     int finished_ai = 0, guard = 0, started_by = -1;
@@ -599,8 +677,14 @@ int main(void) {
     run_helm_scenario();
     printf("== spinnaker / gennaker ==\n");
     run_kite_scenario();
-    printf("== A+B penalty turn ==\n");
-    run_penalty_combo_scenario();
+    printf("== hold A penalty turn ==\n");
+    run_penalty_hold_scenario();
+    printf("== race menu ==\n");
+    run_race_menu_scenario();
+    printf("== auto trim ==\n");
+    run_auto_trim_scenario();
+    printf("== lobby syndicate arbitration ==\n");
+    run_lobby_team_scenario();
     printf("== shore and race-area limits ==\n");
     run_land_scenario();
     printf("== chase / top view ==\n");
@@ -612,6 +696,7 @@ int main(void) {
     printf("== fuzz seasons ==\n");
     for (uint32_t seed = 1; seed <= 12; seed++) run_fuzz_season(seed * 2654435761u, seed <= 3);
     printf("gfx bbox seen: x[%d,%d] y[%d,%d] over %ld calls\n", g_min_x, g_max_x, g_min_y, g_max_y, g_gfx_calls);
+    if (g_oob) failures++;
     if (failures) { printf("\n%d CHECK FAILURE(S)\n", failures); return 1; }
     printf("\nALL CHECKS PASSED\n");
     return 0;

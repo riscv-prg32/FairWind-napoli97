@@ -72,7 +72,7 @@ The RRS engine activates at the preparatory signal:
 - **Contact.** Five sample points along each hull detect contact within 4 m. Contact bounces the yachts apart and slows any that are still moving.
 - **Rule 31.** Touching a buoy within 2.5 m is a penalty, counted once per touch.
 - **Contact ordering.** Rules are checked in a fixed order: Rule 13 tacking, then Rule 18 mark-room inside the 63 m zone, Rule 10 port/starboard, Rule 11 windward, and Rule 12 clear astern.
-- **Penalty turns.** A penalty is cleared by 360° of accumulated heading change with the helm hard over towards the wind. The player triggers it with A+B.
+- **Penalty turns.** A penalty is cleared by 360° of accumulated heading change with the helm hard over towards the wind. The player triggers it by holding A.
 
 ## Courses and finishing
 
@@ -80,20 +80,28 @@ Course navigation is table driven in metres. The windward/run, Olympic triangle 
 
 ## Multiplayer
 
-Multiplayer follows the firmware snapshot API: `init`, `available`, `join`, `tick`, `set_local_state`, `set_input`, `get_peer_count`, `get_peer`, and `leave`. The firmware relays `x`, `y`, `sprite` and `flags` as 16-bit fields but keeps only 7 bits of `input`. The v8 snapshot therefore packs:
+Multiplayer follows the firmware snapshot API: `init`, `available`, `join`, `tick`, `set_local_state`, `set_input`, `get_peer_count`, `get_peer`, `local_player_id` and `leave`. The firmware relays `x`, `y`, `sprite` and `flags` as 16-bit fields but keeps only 7 bits of `input`. The v9 snapshot therefore packs:
 - `x`, `y`: position in decimetres
 - `sprite`: 9-bit heading and 7-bit sheet
-- `flags`: leg, team, spinnaker, started, finished, racing (0x100), gennaker, 3-bit hoist progress, and penalty
+- `flags`: leg, team, spinnaker, started, finished, racing (0x100), gennaker, 3-bit hoist progress, penalty, retired (0x4000) and old race (0x8000, set after about five seconds of racing)
 - `input`: speed in 0.2 kt steps
 
-Lobby snapshots lack the racing bit, which both the ready handshake and the snapshot filter rely on. Peers keep their fleet slot by player id, remote penalties belong to their own console, and AI takes over a disconnected slot. Course-specific `fairwind-napoli97:v8-*` rooms keep incompatible layouts and protocol versions apart.
+Lobby snapshots lack the racing bit and carry team and readiness (0x40). Only racing peers bind fleet slots, by player id; a peer seen back in the lobby keeps its slot frozen until it leaves. Remote penalties belong to their own console, and AI takes over a disconnected slot. Remote yachts are dead-reckoned from their last snapshot and eased a quarter of the way each frame (snapped when far off). In the lobby a console yields its syndicate to any peer with a lower player id; a peer racing with the old-race flag makes newcomers wait. Course-specific `fairwind-napoli97:v9-*` rooms keep incompatible layouts and protocol versions apart.
 
 ## Package
 
-The package targets the portable 64 KiB cartridge profile used by PRG32 main. The builder receives both `--portable` and `--multiplayer`; post-build checks reject any architecture variant over 65,536 bytes. `tools/prg32_cli_64.py` temporarily corrects the Python builder/uploader's stale 32 KiB fallback while preserving the normal CLI.
+The package targets PRG32 1.8's portable 128 KiB profile (`--cart-ram-kib 128`), built separately for `esp32c6` and `qemu`. The code and data take about 74 KB of the 131,072-byte cartridge RAM; each Store variant is about 99 KB with the 9 KB audio block, icon, screenshot and metadata. The image must run at whatever address the host loads it, so the source holds no static pointer tables (they would be absolute addresses: menu labels are `char` arrays) and `tools/check_relocatable.py` links it at two addresses and requires identical bytes.
 
-Procedural yachts replaced the 16 KB of pre-rotated yacht sprite banks. The whole engine fits in about 45.8 KB of code and data, and each store variant is about 54 KB including icon, real-frame screenshot and metadata.
+## Indexed colour
 
-Five authored 320×48 panorama sources share a Mediterranean palette. Runtime versions retain 8-bit palette indices and are resized to 320×24, then compressed as row-safe `(run length, palette index)` byte pairs and expanded directly as horizontal runs.
+The ESP32-C6 framebuffer stores one palette index per pixel and QEMU expands the same palette. `tools/generate_assets.py` writes `src/assets.h`:
+- text colours (`T_*`, RGB565) each in its own 6×6×6 cube cell, because `text8` quantises to the cube on hardware and writes raw RGB565 on QEMU — so both look identical;
+- fixed fill colours (`C_*`) for yachts, sails, buoys, shore, HUD and menus, loaded once;
+- a per-venue block (sky 14, sea 12, haze, clouds, sun, halo, four glint entries, ripple, top-view sea and 16 panorama colours) graded to that race's time of day and reloaded when the venue changes;
+- the five panoramas, the logo and the trophy as row-compressed `(count, index)` runs with 255 transparent, and a 256-step far-coast height profile.
 
-Audio declares eight instruments with explicit left/right pan pairs and five tracks. Tracks 3 and 4 provide stereo short and long horn signals before returning to the race score. The packed block is generated by the firmware's `tools/prg32audio_pack.py`.
+The four glint entries rotate every four frames, so the sun path and ripples sparkle without being redrawn.
+
+## Audio
+
+`tools/build_audio.py` writes `audio.json`: 20 synth instruments (eight for the songs, twelve race effects) and six tracks, packed by the firmware's `tools/prg32audio_pack.py` into a 9.3 KB block. Songs own voices 0–7 through the tracker; in a race the game drives the voices itself: two held noise voices for wind and water whose channel volume and pan follow the apparent wind and speed every four frames, plus surf, flap, winch, thump, horn and bell voices for events.

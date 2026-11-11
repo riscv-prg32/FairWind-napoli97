@@ -3,7 +3,7 @@
 
 Usage: check_store_bundle.py BUNDLE.zip CARTRIDGE_STORE_ROOT
 Fails if the Store would reject the bundle or if any cartridge it rebuilds
-from the manifest exceeds the 64 KiB package ceiling.
+from the manifest exceeds the 128 KiB package ceiling.
 """
 import sys, zipfile
 from pathlib import Path
@@ -18,5 +18,5 @@ for item in prepared:
     size = len(item['image'])
     meta = item['parsed'].metadata
     print(f"store accepts {item['architecture']}: {meta['id']} {meta['version']} rebuilt={size} bytes")
-    if size > 65536:
-        sys.exit(f"{item['file']} rebuilt by the Store exceeds 64 KiB")
+    if size > 131072:
+        sys.exit(f"{item['file']} rebuilt by the Store exceeds 128 KiB")

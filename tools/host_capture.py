@@ -35,11 +35,15 @@ if store:
     save_compact(frame('store-run'), gen / 'screenshot.png')
     save_compact(frame('06-entering-box'), gen / 'start_sequence.png')
     save_compact(frame('store-top'), gen / 'course_paths.png')
-    for src, dst in [('01-title', '01-title'), ('02-mode', '02-mode'), ('03-team-hq', '03-team-hq'), ('04-race-briefing', '04-race-briefing'),
-                     ('06-entering-box', '05-start-sequence'), ('store-run', '06-racing'), ('store-beat', '07-upwind'), ('store-top', '08-top-view')]:
+    for old in shots.glob('*.png'): old.unlink()
+    for src, dst in [('01-title', '01-title'), ('02-mode', '02-mode'), ('02b-team', '03-syndicates'), ('03-team-hq', '04-team-hq'), ('04-race-briefing', '05-race-briefing'),
+                     ('06-entering-box', '06-start-sequence'), ('store-run', '07-racing'), ('store-beat', '08-upwind'), ('store-top', '09-top-view'), ('99-result', '10-result')]:
         save_compact(frame(src), shots / f'{dst}.png')
     sheet = Image.new('RGB', (640, 400))
     for i, name in enumerate(['store-beat', 'store-run', '06-entering-box', 'store-top']):
         sheet.paste(frame(name), ((i % 2) * 320, (i // 2) * 200))
     save_compact(sheet, ROOT / 'release-artifacts/FairWind-napoli97-gameplay.png')
+    subprocess.run([sys.executable, str(ROOT / 'tools/render_preview.py'), str(out)], check=True)
+    save_compact(Image.open(gen / 'icon.png'), ROOT / 'release-artifacts/FairWind-napoli97-icon.png')
+    save_compact(Image.open(gen / 'title.png'), ROOT / 'release-artifacts/FairWind-napoli97-title.png')
     print(f'store screenshot {(gen / "screenshot.png").stat().st_size} bytes')

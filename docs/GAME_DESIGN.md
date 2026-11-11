@@ -9,7 +9,7 @@ The race is decided by the same things that decide real 12-Metre races:
 - **Wind.** Reading shifts in an oscillating SW breeze: tack on headers and don't overstand the layline.
 - **Trim.** Easing and trimming for the apparent wind.
 - **Sail changes.** Choosing and timing spinnaker and gennaker hoists and drops, which cost time.
-- **Traffic.** Handling boats under RRS 10–14, 18 and 31. A+B serves a penalty turn.
+- **Traffic.** Handling boats under RRS 10–14, 18 and 31. Holding A serves a penalty turn.
 
 Yachts carry momentum, so every tack, gybe and luff has a price.
 

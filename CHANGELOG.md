@@ -1,5 +1,45 @@
 # Changelog
 
+## 5.0.0 — 2026-11-11 — 128 KiB profile, indexed colour, sound and playability
+
+### Platform
+
+- Moved to PRG32 1.8's portable **128 KiB profile** (`--cart-ram-kib 128`), built separately for `esp32c6` and `qemu`: about 74 KB of code and data and about 99 KB per package (limit 131,072 bytes). Removed the 64 KiB builder adapter.
+- The image is position independent: static pointer tables are gone (they crashed QEMU, which loads cartridges at a different address) and `tools/check_relocatable.py` links the image at two addresses and requires identical bytes.
+- Uses the latest firmware features: indexed drawing and `prg32_palette_set`, `prg32_audio_note_on_pan` with live channel volume and pan, `prg32_multiplayer_local_player_id`, the hall-of-fame score API, and themed status bands.
+
+### Graphics
+
+- **Indexed colour.** A fixed palette for yachts, sails, shore, HUD and menus, plus a per-race palette — sky, sea, haze, clouds, sun, glitter and the panorama — graded to that race's time of day: morning, late morning, midday, afternoon and sunset.
+- New horizon: graded sky with world-anchored drifting clouds, the sun and its halo at their true bearing, the far coast of Ischia, Procida, Posillipo, Monte Faito and Capri, a perspective-graded sea and a sun-glitter path. The glitter and ripples sparkle by palette cycling.
+- Re-authored panoramas: only land connected to the waterline is kept, so they sit cleanly on the new sky.
+- Yachts: sun-lit and shaded hull sides with back-face culling, team-coloured sheer line, cockpit, two-tone sails by the side in view, team kites with light/dark faces, battens, wakes and bow waves. Improved buoys and committee boat.
+- New title screen with a pixel logo over a live 3D Bay scene and a sailing yacht; syndicate screen with the chosen yacht sailing in a window onto the Bay; briefing with the venue, its time of day and a course map; bevelled panels and gradient menu backdrops; results with team swatches and podium bars; season finale with the trophy and the hall of fame.
+
+### Sound
+
+- Twenty synth instruments and six songs: title (6/8, A minor), team HQ, lobby, podium fanfare, result cadence and season finale.
+- Race audio driven live by the game: wind in the rig and water along the hull (level and pan follow apparent wind and speed), surf, winch clicks, luffing, gybe slams, contact, halyard whoosh, start horns and gun, mark chimes and a penalty buzzer.
+
+### Controls and playability
+
+- Only the D-pad, A and B. **Tap A** spinnaker, **tap B** gennaker, **hold A** penalty turn, **hold B** race menu (resume, auto trim, retire, restart; single-player races pause). The A+B chord now does nothing (the firmware reserves A+B+Down).
+- **Auto trim** (default on): the crew trims to the best angle, and yields to Up/Down for 1.5 s.
+- Guidance panel after the gun: arrow to the next mark, distance and live position. Toasts for signals, roundings, penalties and the finish; HUD hints for kite hoists and drops; name tags over rival yachts.
+- B goes back on the mode, syndicate and briefing screens; the mode screen holds single player, network multiplayer and auto trim.
+
+### Multiplayer (protocol v9)
+
+- Rooms `fairwind-napoli97:v9-*`; the snapshot adds retired and old-race flags.
+- Lobby lists players with P1–P4 tags, syndicate colours and states. Duplicate syndicates are resolved by player id (points still go to the campaign syndicate). Late joiners wait for a race in progress.
+- Only racing consoles bind fleet slots (a lobby snapshot no longer freezes a slot); remote yachts are dead-reckoned and smoothed between snapshots.
+
+### Tooling and release
+
+- `scripts/qemu_preview.py` records the Store preview from QEMU (headless, stereo, frames on the audio clock) and cuts it to 60 s; `make preview`.
+- `build.sh` builds both architectures, attaches metadata, and packs the Store bundle with the icon, splash and `preview.mp4`.
+- Host renderer emulates the palettes; new harness scenarios cover hold/tap separation, the race menu, auto trim, lobby arbitration, late joiners and off-screen drawing.
+
 ## 4.0.0 — 2026-09-23 — FairWind: stern view and sailing physics
 
 ### Renamed

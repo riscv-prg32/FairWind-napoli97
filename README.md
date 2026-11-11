@@ -17,11 +17,11 @@ The five venues are based on authored late-1990s console-style pixel panoramas o
 
 ## Multiplayer
 
-Select **Network Multiplayer** on the mode screen. The cartridge joins a PRG32 v8 room dedicated to the selected course through the resident firmware's Wi-Fi/WebSocket snapshot service. Each console owns its local yacht and publishes position, heading, sheet trim, kite state, speed, selected team, course leg, start-line crossing, readiness, and finish state. Up to three remote peers occupy the remaining fleet slots; AI controls only unoccupied or disconnected slots.
+Select **Network Multiplayer** on the mode screen. The cartridge joins a PRG32 v9 room dedicated to the selected course through the resident firmware's Wi-Fi/WebSocket snapshot service. Each console owns its local yacht and publishes position, heading, sheet trim, kite state, speed, selected team, course leg, start-line crossing, readiness, and finish state. Up to three remote peers occupy the remaining fleet slots; AI controls only unoccupied or disconnected slots.
 
-The lobby supports two, three, or four human players. Press A to become ready; the race starts when every visible player is ready. Press B to leave the room and race against AI instead. During a race the HUD shows the currently connected fleet count as `NET n/4`.
+The lobby supports two, three, or four human players and lists each one with a P1–P4 tag (by player id, the same on every console), syndicate colour and READY/WAITING/RACING state. Press A to become ready; the race starts when every visible player is ready. Press B to leave the room and race against AI instead. If two consoles pick the same syndicate, the one that joined later moves to the next free syndicate for the race (its campaign points still go to its own team). A console that arrives while a race is already under way waits in the lobby (`RACE IN PROGRESS`) instead of starting out of step. During a race the HUD shows the connected fleet count as `N n/4`, and rival yachts carry `P2`–`P4` tags (AI yachts show their syndicate code).
 
-Rooms are versioned `fairwind-napoli97:v8-<course>`: the v8 snapshot carries position in decimetres, a 9-bit heading, sheet trim, kite type and hoist progress, and boat speed, so every console draws remote rigs trimmed to the same breeze. If a peer disconnects, AI takes over the vacated slot.
+Rooms are versioned `fairwind-napoli97:v9-<course>`: the v9 snapshot carries position in decimetres, a 9-bit heading, sheet trim, kite type and hoist progress, boat speed, retirement and an old-race flag, so every console draws remote rigs trimmed to the same breeze. Remote yachts are dead-reckoned between snapshots and eased into place, so they glide rather than step. Only racing consoles take a fleet slot; if a peer disconnects, AI takes over its yacht.
 
 Requirements:
 
@@ -32,24 +32,28 @@ Requirements:
 
 ## Controls
 
+Only the digital joystick, A and B are used.
+
 | Screen | Control | Action |
 |---|---|---|
-| Menus | D-pad | Navigate or select team/mode |
+| Menus | D-pad | Navigate or select team, mode or course |
 | Menus | A | Confirm, sign, invest, or continue |
-| Team HQ | B | Sell one development level |
-| Race | Left | Helm to port |
-| Race | Right | Helm to starboard |
-| Race | Up | Ease (loosen) the sheets |
-| Race | Down | Trim (tighten) the sheets |
-| Race | A | Hoist or drop the spinnaker (takes simulated time) |
-| Race | B | Hoist or drop the gennaker (takes simulated time) |
-| Race | A+B | Take a penalty turn |
+| Menus | B | Back (mode, syndicate and briefing screens); sell one development level in Team HQ |
+| Race | Left / Right | Helm to port / starboard |
+| Race | Up / Down | Ease / trim the sheets |
+| Race | Tap A | Hoist or drop the spinnaker (takes simulated time) |
+| Race | Tap B | Hoist or drop the gennaker (takes simulated time) |
+| Race | Hold A | Take a penalty turn (when penalised) |
+| Race | Hold B | Race menu: resume, auto trim on/off, retire, restart |
 
-Spinnaker and gennaker are mutually exclusive: asking for one while the other is set drops it first and then hoists the new sail. A and B act on release, so pressing both for a penalty never flips a kite.
+Taps act on release, and a press held for 0.4 s is a hold, so a hold never flips a kite. Pressing A and B together does nothing (the firmware reserves A+B+Down). Spinnaker and gennaker are mutually exclusive: asking for one while the other is set drops it first and then hoists the new sail.
+
+**Auto trim** (on by default, toggled on the mode screen or in the race menu) has the crew trim the sheets to the best angle; touching Up/Down takes over for a moment and the crew resumes after 1.5 s without sheet input. The single-player race pauses behind the race menu; in a network race the menu opens over the live race.
 
 ## On the water
 
-- **Stern chase view.** A perspective camera rides behind and above the stern, looking along the yacht's heading. The venue's late-1990s panorama sits dead downwind on the horizon, low coastal hills continue round the Gulf, and the open horizon lies upwind to the SW.
+- **Stern chase view.** A perspective camera rides behind and above the stern, looking along the yacht's heading. Each race has its own time of day — morning, late morning, midday, afternoon and sunset — with a graded sky, drifting clouds, a sun and halo at its true bearing, and a sea graded from hazy horizon to deep water with a sun-glitter path whose sparkle is palette cycling. The venue's late-1990s panorama sits dead downwind on the horizon, Ischia, Procida, Posillipo, Monte Faito and Capri continue round the Gulf, and the open horizon lies upwind to the SW. Hull sides are lit or shaded by the sun.
+- **Guidance.** After the gun a panel shows an arrow to the next mark relative to the bow, its distance and your live position (`P2/4`); toasts announce signals, roundings, penalties and the finish, and the HUD suggests kite hoists and drops by wind angle.
 - **Top view in close quarters.** Within 70 m of a rival or buoy the view switches to a heading-up overhead camera, which returns to the stern view beyond 100 m. At the next mark it draws the three-length zone.
 - **Race field and map.** The playing area (1.8 × 1.7 km) is larger than any view. A course-up map at the top right shows the shore, marks, lines, rivals, your heading, the wind and, from Strategy level 2, the laylines to a windward mark.
 - **Land.** Naples lies to leeward, the Sorrento cliffs to port and Posillipo to starboard of the upwind course. They are rendered as shore walls and cannot be sailed onto: a yacht driven into them loses all way (`AGROUND`), and the SW race-area limit behaves the same (`AREA LIMIT`).
@@ -96,13 +100,17 @@ The game enforces a compact deterministic subset of the [World Sailing Racing Ru
 - Rule 18: the nearer/inside yacht receives mark-room inside the three-length zone.
 - Rule 31: touching a course mark incurs a penalty.
 
-The HUD identifies the infringement. Press A+B to take the penalty: the helm is put hard over towards the wind and the yacht turns a full 360 degrees under its own momentum. Unresolved penalties add three simulated minutes at the finish. This is intentionally a playable rules subset, not a protest-hearing simulator.
+The HUD identifies the infringement. Hold A to take the penalty: the helm is put hard over towards the wind and the yacht turns a full 360 degrees under its own momentum. Unresolved penalties add three simulated minutes at the finish. This is intentionally a playable rules subset, not a protest-hearing simulator.
+
+## Sound
+
+Each screen has its own tracker song: a 6/8 tarantella-flavoured title theme, a harbour theme for team HQ and briefings, a lobby loop, a podium fanfare or a minor cadence on the result screen, and a season-finale theme. Races have no music: the sea does the talking, with wind in the rig and water along the hull whose level and stereo pan follow the apparent wind and boat speed, rolling surf, winch clicks while trimming, the luff flapping, gybe slams, contact thumps, a halyard whoosh on hoists, start horns and gun, mark-rounding chimes and a penalty buzzer. Twenty synth instruments, no samples.
 
 ## Technical profile
 
-- PRG32 portable ABI with multiplayer feature declaration
-- Executable footprint below the firmware's **65,536-byte (64 KiB)** cartridge RAM ceiling
-- Hard maximum package size: **65,536 bytes (64 KiB)** per architecture variant
+- PRG32 1.8 portable ABI with multiplayer feature declaration, position independent (checked by `tools/check_relocatable.py`)
+- **128 KiB profile**: about 74 KB of code and data in the firmware's 131,072-byte cartridge RAM, and about 99 KB per package (limit 131,072 bytes)
+- **Indexed colour**: fills by palette index, a fixed palette for yachts, menus and HUD plus a per-race palette (sky, sea, haze, sun, glitter and panorama) graded to the race's time of day; text colours sit on exact cube cells so ESP32-C6 and QEMU match
 - Normal 320×200 cartridge viewport with firmware-owned status bands
 - Fixed-point perspective renderer: stern chase camera, camera-space clipping, even-odd polygon fill, painter's ordering
 - Procedural Il Moro di Venezia V-inspired yachts: slender deep-red topsides, team-coloured sheer, pale deck, dark rig, and sails that follow wind, trim and heading
@@ -113,10 +121,10 @@ The HUD identifies the infringement. Press A+B to take the penalty: the helm is 
 - Automatic heading-up top view within 70 m of a rival or buoy (100 m to return)
 - Simulated time: 20× early pre-start, 4× from box entry, with a complete 10/5–4–2–1–start match-racing sequence
 - Three selectable paths with active-buoy highlighting and a committee-boat finish line
-- Deterministic enforcement of basic RRS 10–14, 18, and 31 with A+B penalty turns
-- Five authored late-1990s-style panoramas stored as row-compressed 8-bit indexed landscapes
-- Colours chosen on the ILI9341's 6×6×6 palette cube, so hardware and QEMU match
-- Eight-voice stereo tracker score
+- Deterministic enforcement of basic RRS 10–14, 18, and 31 with hold-A penalty turns
+- Five authored late-1990s-style panoramas, the logo and the trophy stored as row-compressed indexed images
+- Eight-voice stereo audio: six tracker songs and live race effects
+- Season scores submitted to the PRG32 hall of fame
 - Allocation-free update/draw loop suitable for the physical ESP32-C6 profile
 - Store metadata and ESP32-C6/QEMU variants
 
@@ -128,26 +136,31 @@ make test
 PRG32_ROOT=/path/to/current/PRG32 ./build.sh
 ```
 
-The build passes both `--portable` and `--multiplayer`. It rejects either generated `.prg32` file if it exceeds 65,536 bytes and produces `dist/FairWind-napoli97-<version>-store.zip`.
+The build regenerates art and music, runs the tests, proves position independence, builds `--portable --multiplayer --cart-ram-kib 128` images for `esp32c6` and `qemu`, rejects any package over 131,072 bytes, and produces `dist/FairWind-napoli97-<version>-store.zip` (both cartridges, icon, splash and the 60-second `preview.mp4`). With `CARTRIDGE_STORE_ROOT` set it validates the bundle with the Store's own intake code. Publishing to the Store is a separate, human step.
 
 `make test` runs the source checks, a `-Werror` host syntax check, and the behavioural harness under ASan/UBSan. Besides the season, fuzz and multiplayer scenarios, the harness measures:
 - polar speeds and momentum
 - trim, luffing and stalling
 - helm direction and turn rate
 - spinnaker and gennaker hoist timing and mutual exclusion
-- A+B penalty turns
+- hold-A penalty turns, the A+B chord doing nothing, and tap/hold separation
+- the race menu (pause, auto trim, resume, retire) and auto trim
+- lobby syndicate arbitration and late joiners
 - grounding
 - chase/top-view hysteresis
 - wind-shift bounds and determinism
 - full AI races on all three courses
+- no drawing outside the 320×200 viewport
 
-`make screenshots` (needs a PRG32 checkout for its 8×8 font) runs `tools/host_capture.py`: real `game.c` frames rendered on the host through the 6×6×6 palette, with the player's yacht helmed by the AI autopilot. It refreshes the store screenshot and `release-artifacts/store-screenshots/`. `tools/host_capture.py OUTDIR [COURSE] [VENUE]` dumps a whole race; with `TRACE=1` it also logs every yacht's position, speed, leg, sheet and rudder.
+`make screenshots` (needs a PRG32 checkout for its 8×8 font) runs `tools/host_capture.py`: real `game.c` frames rendered on the host through the cartridge's own palettes, with the player's yacht helmed by the AI autopilot. It refreshes the store screenshot, icon, title art and `release-artifacts/store-screenshots/`.
+
+`make preview` records the Store preview in QEMU with `scripts/qemu_preview.py` (needs the PRG32 QEMU firmware in `$PRG32_ROOT/build-qemu`, Espressif QEMU and ffmpeg): it boots the firmware headless, switches its audio to stereo, plays the title, menus and a race with a scripted skipper, grabs the framebuffer over QMP on the audio clock, and cuts the take to 60 s. `tools/host_capture.py OUTDIR [COURSE] [VENUE]` dumps a whole race; with `TRACE=1` it also logs every yacht's position, speed, leg, sheet and rudder.
 
 ## Store media
 
 - [Gameplay contact sheet](release-artifacts/FairWind-napoli97-gameplay.png)
 - [Store screenshot set](release-artifacts/store-screenshots/)
-- [60-second audiovisual preview](release-artifacts/FairWind-napoli97-preview-60s.mp4) (recorded with 3.x, before the stern-view engine)
+- [60-second audiovisual preview](release-artifacts/FairWind-napoli97-preview-60s.mp4), recorded from QEMU with stereo game audio
 
 Store screenshots are real frames from `tools/host_capture.py --store`.
 
